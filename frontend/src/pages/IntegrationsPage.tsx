@@ -66,14 +66,39 @@ export const IntegrationsPage: React.FC = () => {
   };
 
   const [pingResult, setPingResult] = useState<Record<string, { ms: number; ok: boolean } | null>>({});
+  const [pingingAll, setPingingAll] = useState(false);
+  const [pingFeedback, setPingFeedback] = useState<string | null>(null);
 
   const handleTestConnection = async (id: string) => {
     setPingResult((prev) => ({ ...prev, [id]: null }));
-    // Simulate a real gateway ping with realistic latency
-    const delay = Math.floor(Math.random() * 180) + 60;
-    await new Promise((r) => setTimeout(r, delay));
-    const ok = Math.random() > 0.15; // 85% success rate
-    setPingResult((prev) => ({ ...prev, [id]: { ms: delay, ok } }));
+    try {
+      const res = await api.pingGateway(id);
+      setPingResult((prev) => ({ ...prev, [id]: { ms: res.latency_ms, ok: res.ok } }));
+      await fetchData();
+    } catch (err: any) {
+      setPingResult((prev) => ({ ...prev, [id]: { ms: 999, ok: false } }));
+    }
+  };
+
+  const handlePingAll = async () => {
+    setPingingAll(true);
+    setPingFeedback(null);
+    try {
+      await Promise.all(
+        integrations.map(async (item) => {
+          setPingResult((prev) => ({ ...prev, [item.id]: null }));
+          const res = await api.pingGateway(item.id);
+          setPingResult((prev) => ({ ...prev, [item.id]: { ms: res.latency_ms, ok: res.ok } }));
+        })
+      );
+      await fetchData();
+      setPingFeedback('All 4 healthcare infrastructure bridges probed and latency recalibrated successfully.');
+      setTimeout(() => setPingFeedback(null), 4000);
+    } catch (err: any) {
+      alert(`Ping failed: ${err.message}`);
+    } finally {
+      setPingingAll(false);
+    }
   };
 
   return (
@@ -88,13 +113,25 @@ export const IntegrationsPage: React.FC = () => {
         </div>
 
         <button
-          onClick={fetchData}
-          className="apple-btn-secondary px-3.5 py-1.5 text-xs font-semibold flex items-center gap-1.5 self-start sm:self-auto"
+          onClick={handlePingAll}
+          disabled={pingingAll}
+          className="apple-btn-primary px-4 py-2 text-xs font-semibold flex items-center gap-2 self-start sm:self-auto disabled:opacity-50"
         >
-          <RefreshCw className="w-3.5 h-3.5 text-slate-600" />
-          <span>Ping Gateways</span>
+          <RefreshCw className={`w-3.5 h-3.5 ${pingingAll ? 'animate-spin' : ''}`} />
+          <span>{pingingAll ? 'Pinging All Gateways...' : 'Ping All Gateways'}</span>
         </button>
       </div>
+
+      {/* Ping Feedback Banner */}
+      {pingFeedback && (
+        <div className="p-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-400/40 text-emerald-950 text-xs font-semibold flex items-center justify-between animate-in fade-in backdrop-blur-md">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{pingFeedback}</span>
+          </div>
+          <button onClick={() => setPingFeedback(null)} className="text-emerald-700 hover:text-emerald-900 text-xs">✕</button>
+        </div>
+      )}
 
       {/* Resilience & Observability Callout - Apple Deep Frosted Card */}
       <div className="relative overflow-hidden rounded-3xl p-6 border border-white/80 shadow-glass-card bg-gradient-to-r from-slate-900/90 via-blue-950/85 to-indigo-950/90 text-white backdrop-blur-2xl">
@@ -229,7 +266,7 @@ export const IntegrationsPage: React.FC = () => {
                     {pingResult[item.id] === null ? (
                       <>
                         <RefreshCw className="w-3 h-3 animate-spin text-slate-500" />
-                        <span>Pinging...</span>
+                        <span>Pinging Gateway...</span>
                       </>
                     ) : pingResult[item.id] ? (
                       <>
@@ -239,7 +276,7 @@ export const IntegrationsPage: React.FC = () => {
                     ) : (
                       <>
                         <Zap className="w-3 h-3 text-brand-600" />
-                        <span>Test Connection</span>
+                        <span>Ping Gateway</span>
                       </>
                     )}
                   </button>

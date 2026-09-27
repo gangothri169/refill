@@ -541,6 +541,70 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
     return { success: true };
   }
 
+  // Ping Gateway / Ping All Gateways
+  if (cleanEndpoint.includes('/ping') && method === 'POST') {
+    const items = getStoredIntegrations();
+    if (cleanEndpoint.includes('/ping-all')) {
+      items.forEach((item) => {
+        const isHealthy = item.status === 'HEALTHY';
+        item.latency_ms = isHealthy ? Math.floor(Math.random() * 35) + 22 : Math.floor(Math.random() * 300) + 1200;
+        item.last_sync = new Date().toISOString();
+      });
+      saveStoredIntegrations(items);
+
+      const audits = getStoredAudits();
+      audits.unshift({
+        id: `aud-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        actor_type: 'SYSTEM',
+        actor_id: 'sys-monitor-01',
+        actor_name: 'Health Monitor Probe',
+        actor_role: 'SYSTEM',
+        action: 'PING_ALL_GATEWAYS',
+        event_type: 'INTEGRATION_PROBE',
+        confidence: 1.0,
+        details: { count: items.length, status: 'Probe verified across all bridges' }
+      });
+      saveStoredAudits(audits);
+
+      return { success: true, count: items.length };
+    }
+
+    const idMatch = cleanEndpoint.match(/^\/integrations\/([A-Za-z0-9_-]+)\/ping$/);
+    const intId = idMatch ? idMatch[1] : '';
+    const idx = items.findIndex((i) => i.id === intId);
+    if (idx !== -1) {
+      const isHealthy = items[idx].status === 'HEALTHY';
+      const latency = isHealthy ? Math.floor(Math.random() * 35) + 20 : Math.floor(Math.random() * 300) + 1200;
+      items[idx].latency_ms = latency;
+      items[idx].last_sync = new Date().toISOString();
+      saveStoredIntegrations(items);
+
+      const audits = getStoredAudits();
+      audits.unshift({
+        id: `aud-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        actor_type: 'SYSTEM',
+        actor_id: 'sys-monitor-01',
+        actor_name: 'Health Monitor Probe',
+        actor_role: 'SYSTEM',
+        action: 'GATEWAY_PING',
+        event_type: 'INTEGRATION_PROBE',
+        confidence: 1.0,
+        details: { integration: items[idx].name, latency_ms: latency, status: items[idx].status }
+      });
+      saveStoredAudits(audits);
+
+      return {
+        id: intId,
+        latency_ms: latency,
+        ok: isHealthy,
+        status: items[idx].status
+      };
+    }
+    return { ok: true, latency_ms: 35 };
+  }
+
   if (cleanEndpoint === '/health') {
     return { status: 'HEALTHY', demo_mode: true, subsystems: { api: { status: 'HEALTHY' }, database: { status: 'HEALTHY' } } };
   }
@@ -798,6 +862,8 @@ export const api = {
   getIntegrations: () => apiRequest('/integrations'),
   retryIntegration: (id: string) => apiRequest(`/integrations/${id}/retry`, { method: 'POST' }),
   toggleIntegrationFailure: (id: string) => apiRequest(`/integrations/${id}/toggle-failure`, { method: 'POST' }),
+  pingGateway: (id: string) => apiRequest(`/integrations/${id}/ping`, { method: 'POST' }),
+  pingAllGateways: () => apiRequest('/integrations/ping-all', { method: 'POST' }),
   getHealth: () => apiRequest('/health'),
 
   // Notifications
