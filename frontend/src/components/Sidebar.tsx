@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Layers,
@@ -16,21 +16,67 @@ import {
   Activity
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../api/client';
 
 export const Sidebar: React.FC = () => {
   const { user } = useAuth();
+  const location = useLocation();
+  const [queueCount, setQueueCount] = useState<number>(0);
+
+  useEffect(() => {
+    async function loadQueueCount() {
+      try {
+        const allCases = await api.getCases();
+        if (Array.isArray(allCases)) {
+          let count = 0;
+          if (user?.role === 'PROVIDER') {
+            count = allCases.filter(
+              (c: any) =>
+                c.status === 'WAITING_FOR_PROVIDER' ||
+                c.owner_role === 'PROVIDER' ||
+                c.ai_analysis?.recommended_role === 'PROVIDER'
+            ).length;
+          } else if (user?.role === 'PHARMACY_STAFF') {
+            count = allCases.filter(
+              (c: any) =>
+                c.status === 'WAITING_FOR_PHARMACY' ||
+                c.status === 'ACTION_REQUIRED' ||
+                c.owner_role === 'PHARMACY_STAFF'
+            ).length;
+          } else if (user?.role === 'ADMIN') {
+            count = allCases.filter((c: any) => c.status === 'ESCALATED' || c.sla_status === 'WARNING').length;
+          } else {
+            // PRACTICE_STAFF default
+            count = allCases.filter(
+              (c: any) =>
+                c.status === 'TRIAGING' ||
+                c.status === 'INVESTIGATING' ||
+                c.status === 'WAITING_FOR_INFORMATION' ||
+                c.status === 'WAITING_FOR_INSURANCE' ||
+                c.owner_role === 'PRACTICE_STAFF'
+            ).length;
+          }
+          setQueueCount(count);
+        }
+      } catch {}
+    }
+    loadQueueCount();
+  }, [user?.role, location.pathname, location.search]);
+
+  const isMyQueueActive = location.pathname === '/cases' && location.search.includes('queue=mine');
+  const isRefillCasesActive = location.pathname === '/cases' && !location.search.includes('queue=mine');
 
   const navItems = [
-    { label: 'Overview', to: '/dashboard', icon: LayoutDashboard },
-    { label: 'Refill Cases', to: '/cases', icon: Layers },
-    { label: 'My Queue', to: '/cases?queue=mine', icon: Inbox, badge: user?.role === 'PROVIDER' ? '4' : '12' },
-    { label: 'Analytics', to: '/analytics', icon: BarChart3 },
-    { label: 'Notifications', to: '/notifications', icon: Bell },
-    { label: 'Integrations', to: '/integrations', icon: Network, status: 'degraded' },
-    { label: 'Audit Log', to: '/audit', icon: History },
-    { label: 'Knowledge Base', to: '/knowledge', icon: BookOpen },
-    { label: 'Commercial GTM', to: '/growth', icon: TrendingUp },
-    { label: 'Settings', to: '/settings', icon: Settings },
+    { label: 'Overview', to: '/dashboard', icon: LayoutDashboard, isItemActive: location.pathname === '/dashboard' },
+    { label: 'Refill Cases', to: '/cases', icon: Layers, isItemActive: isRefillCasesActive },
+    { label: 'My Queue', to: '/cases?queue=mine', icon: Inbox, badge: queueCount > 0 ? String(queueCount) : undefined, isItemActive: isMyQueueActive },
+    { label: 'Analytics', to: '/analytics', icon: BarChart3, isItemActive: location.pathname === '/analytics' },
+    { label: 'Notifications', to: '/notifications', icon: Bell, isItemActive: location.pathname === '/notifications' },
+    { label: 'Integrations', to: '/integrations', icon: Network, status: 'degraded', isItemActive: location.pathname === '/integrations' },
+    { label: 'Audit Log', to: '/audit', icon: History, isItemActive: location.pathname === '/audit' },
+    { label: 'Knowledge Base', to: '/knowledge', icon: BookOpen, isItemActive: location.pathname === '/knowledge' },
+    { label: 'Commercial GTM', to: '/growth', icon: TrendingUp, isItemActive: location.pathname === '/growth' },
+    { label: 'Settings', to: '/settings', icon: Settings, isItemActive: location.pathname === '/settings' },
   ];
 
   return (
@@ -67,9 +113,9 @@ export const Sidebar: React.FC = () => {
             <NavLink
               key={item.to}
               to={item.to}
-              className={({ isActive }) =>
+              className={() =>
                 `flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                  isActive
+                  item.isItemActive
                     ? 'bg-blue-600/10 text-blue-700 border border-blue-500/20 font-semibold shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                 }`

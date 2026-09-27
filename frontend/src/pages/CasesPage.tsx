@@ -4,10 +4,12 @@ import { RefillCase, CaseStatus } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 import { PriorityBadge } from '../components/PriorityBadge';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import {
   Search,
   Filter,
   Layers,
+  Inbox,
   Kanban,
   Table as TableIcon,
   PlusCircle,
@@ -21,6 +23,7 @@ import {
 
 export const CasesPage: React.FC<{ onOpenNewCase: () => void }> = ({ onOpenNewCase }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [cases, setCases] = useState<RefillCase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +35,39 @@ export const CasesPage: React.FC<{ onOpenNewCase: () => void }> = ({ onOpenNewCa
   const [blockerFilter, setBlockerFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [roleFilter, setRoleFilter] = useState('ALL');
+
+  // Queue mode: All Refill Cases vs My Queue
+  const isMyQueue = searchParams.get('queue') === 'mine';
+
+  const filterMyQueue = (c: RefillCase): boolean => {
+    if (user?.role === 'PROVIDER') {
+      return (
+        c.status === 'WAITING_FOR_PROVIDER' ||
+        c.owner_role === 'PROVIDER' ||
+        c.ai_analysis?.recommended_role === 'PROVIDER'
+      );
+    }
+    if (user?.role === 'PHARMACY_STAFF') {
+      return (
+        c.status === 'WAITING_FOR_PHARMACY' ||
+        c.status === 'ACTION_REQUIRED' ||
+        c.owner_role === 'PHARMACY_STAFF'
+      );
+    }
+    if (user?.role === 'ADMIN') {
+      return c.status === 'ESCALATED' || c.sla_status === 'WARNING';
+    }
+    // PRACTICE_STAFF default
+    return (
+      c.status === 'TRIAGING' ||
+      c.status === 'INVESTIGATING' ||
+      c.status === 'WAITING_FOR_INFORMATION' ||
+      c.status === 'WAITING_FOR_INSURANCE' ||
+      c.owner_role === 'PRACTICE_STAFF'
+    );
+  };
+
+  const displayedCases = isMyQueue ? cases.filter(filterMyQueue) : cases;
 
   const fetchCases = async () => {
     setLoading(true);
@@ -142,6 +178,83 @@ export const CasesPage: React.FC<{ onOpenNewCase: () => void }> = ({ onOpenNewCa
           </button>
         </div>
       </div>
+
+      {/* Directory Mode Switcher Tabs: All Refill Cases vs My Queue */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-3">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const nextParams = new URLSearchParams(searchParams);
+              nextParams.delete('queue');
+              setSearchParams(nextParams);
+            }}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+              !isMyQueue
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                : 'bg-white/70 text-slate-600 hover:text-slate-900 border border-slate-200/60'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>All Refill Cases</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+              !isMyQueue ? 'bg-white/20 text-white' : 'bg-slate-200/70 text-slate-700'
+            }`}>
+              {cases.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              const nextParams = new URLSearchParams(searchParams);
+              nextParams.set('queue', 'mine');
+              setSearchParams(nextParams);
+            }}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+              isMyQueue
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                : 'bg-white/70 text-slate-600 hover:text-slate-900 border border-slate-200/60'
+            }`}
+          >
+            <Inbox className="w-3.5 h-3.5" />
+            <span>My Queue ({user?.role_title || 'Assigned'})</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+              isMyQueue ? 'bg-white/20 text-white' : 'bg-blue-500/15 text-blue-700 font-bold'
+            }`}>
+              {cases.filter(filterMyQueue).length}
+            </span>
+          </button>
+        </div>
+
+        {isMyQueue && (
+          <div className="text-xs text-slate-500 flex items-center gap-2">
+            <span>Filtering cases requiring action by <strong className="text-slate-800">{user?.role_title || user?.name}</strong></span>
+          </div>
+        )}
+      </div>
+
+      {isMyQueue && (
+        <div className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-400/25 flex items-center justify-between text-xs text-blue-900 backdrop-blur-md">
+          <div className="flex items-center gap-2.5">
+            <Inbox className="w-4 h-4 text-blue-600 shrink-0" />
+            <div>
+              <span className="font-bold">Active Filter: My Queue ({user?.role_title || user?.role})</span>
+              <p className="text-[11px] text-blue-700/90 font-medium">
+                Showing {displayedCases.length} case{displayedCases.length === 1 ? '' : 's'} requiring clinical or operational action by your role.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              const nextParams = new URLSearchParams(searchParams);
+              nextParams.delete('queue');
+              setSearchParams(nextParams);
+            }}
+            className="text-xs font-bold text-blue-700 hover:text-blue-900 underline underline-offset-2"
+          >
+            Show All {cases.length} Cases
+          </button>
+        </div>
+      )}
 
       {/* Filter and Search Bar - Frosted Glass Card */}
       <div className="glass-card p-5 space-y-4">
@@ -266,7 +379,7 @@ export const CasesPage: React.FC<{ onOpenNewCase: () => void }> = ({ onOpenNewCa
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white/40 backdrop-blur-xs">
-                {cases.length === 0 ? (
+                {displayedCases.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="py-12 text-center text-slate-400">
                       <Layers className="w-8 h-8 mx-auto mb-2 text-slate-300" />
@@ -275,7 +388,7 @@ export const CasesPage: React.FC<{ onOpenNewCase: () => void }> = ({ onOpenNewCa
                     </td>
                   </tr>
                 ) : (
-                  cases.map((c) => (
+                  displayedCases.map((c) => (
                     <tr
                       key={c.id}
                       onClick={() => navigate(`/cases/${c.id}`)}
@@ -322,7 +435,7 @@ export const CasesPage: React.FC<{ onOpenNewCase: () => void }> = ({ onOpenNewCa
         /* Kanban Board View - 5 Frosted Glass Columns */
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 items-start">
           {kanbanColumns.map((col) => {
-            const colCases = cases.filter(col.filter);
+            const colCases = displayedCases.filter(col.filter);
             return (
               <div key={col.id} className="glass-card-subtle p-3.5 flex flex-col min-h-[500px]">
                 {/* Column Header */}
