@@ -334,6 +334,47 @@ export const DEMO_ANALYTICS = {
     { day: "Sat", submitted: 12, resolved: 11 },
     { day: "Sun", submitted: 8, resolved: 8 }
   ],
+  resolution_buckets: [
+    { bucket: "< 2 hrs", count: 28, label: "Instant / Fast Path" },
+    { bucket: "2-6 hrs", count: 45, label: "Provider Same-Day" },
+    { bucket: "6-12 hrs", count: 31, label: "Standard Review" },
+    { bucket: "12-24 hrs", count: 18, label: "Information Retrieval" },
+    { bucket: "> 24 hrs", count: 6, label: "Complex / Prior Auth" }
+  ],
+  organizations: [
+    {
+      org_name: "Downtown Physician Group",
+      type: "PRACTICE",
+      active_cases: 14,
+      resolved_this_month: 482,
+      avg_resolution_hours: 6.8,
+      sla_compliance_pct: 94.2
+    },
+    {
+      org_name: "Downtown Pharmacy",
+      type: "PHARMACY",
+      active_cases: 9,
+      resolved_this_month: 614,
+      avg_resolution_hours: 5.4,
+      sla_compliance_pct: 96.1
+    },
+    {
+      org_name: "Metropolitan Health System",
+      type: "HEALTH_SYSTEM",
+      active_cases: 23,
+      resolved_this_month: 1096,
+      avg_resolution_hours: 7.2,
+      sla_compliance_pct: 95.8
+    },
+    {
+      org_name: "MetroCare Community Pharmacy",
+      type: "PHARMACY",
+      active_cases: 5,
+      resolved_this_month: 320,
+      avg_resolution_hours: 4.8,
+      sla_compliance_pct: 97.4
+    }
+  ],
   commercial_roi: {
     disclaimer: "DEMO / SIMULATED BENCHMARKS",
     annual_hours_saved: 2450,

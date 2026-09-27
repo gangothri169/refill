@@ -211,8 +211,8 @@ export const AnalyticsPage: React.FC = () => {
             <p className="text-xs text-slate-500">Submitted vs resolved cases per weekday</p>
           </div>
 
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-64 w-full min-h-[260px]">
+            <ResponsiveContainer width="100%" height={260}>
               <BarChart data={volumeData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(226, 232, 240, 0.6)" />
                 <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#64748b' }} />
@@ -233,8 +233,8 @@ export const AnalyticsPage: React.FC = () => {
             <p className="text-xs text-slate-500">Refill cases categorized by turnaround duration</p>
           </div>
 
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-64 w-full min-h-[260px]">
+            <ResponsiveContainer width="100%" height={260}>
               <BarChart data={resolutionBuckets} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(226, 232, 240, 0.6)" />
                 <XAxis type="number" tick={{ fontSize: 11, fill: '#64748b' }} />

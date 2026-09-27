@@ -199,8 +199,53 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
     return { success: true };
   }
 
+  // Case Assignment
+  if (cleanEndpoint.includes('/assign') && method === 'POST') {
+    const idMatch = cleanEndpoint.match(/^\/cases\/([A-Za-z0-9_-]+)\/assign$/);
+    const caseId = idMatch ? idMatch[1] : '';
+    const cases = getStoredCases();
+    const idx = cases.findIndex((c) => c.id === caseId);
+    if (idx !== -1) {
+      cases[idx].owner_name = body.assignee_name || 'Dr. Sarah Wilson';
+      cases[idx].owner_role = body.assignee_role || 'PROVIDER';
+      cases[idx].status = 'WAITING_FOR_PROVIDER';
+      cases[idx].updated_at = new Date().toISOString();
+      saveStoredCases(cases);
+    }
+    return { success: true };
+  }
+
+  // Communications Post
+  if (cleanEndpoint.includes('/communications') && method === 'POST') {
+    return {
+      id: `comm-${Date.now()}`,
+      sender_name: 'Care Coordinator',
+      sender_role: body.sender_role || 'PRACTICE_STAFF',
+      content: body.content || '',
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  // AI Message Draft
+  if (cleanEndpoint === '/ai/draft-message' && method === 'POST') {
+    return {
+      subject: `Prescription Refill Inquiry: ${body.case_id || 'Refill Request'}`,
+      body: `Hello Care Team,\n\nFollowing up regarding the refill request for ${body.case_id || 'this patient'}. The prescription indicates zero refills remaining. Recent clinical monitoring is documented. Please review and authorize the renewal.\n\nThank you,\nClinical Operations`
+    };
+  }
+
   // Status Update
   if (cleanEndpoint.includes('/status') && method === 'PATCH') {
+    const idMatch = cleanEndpoint.match(/^\/cases\/([A-Za-z0-9_-]+)\/status$/);
+    const caseId = idMatch ? idMatch[1] : '';
+    const cases = getStoredCases();
+    const idx = cases.findIndex((c) => c.id === caseId);
+    if (idx !== -1 && body.new_status) {
+      cases[idx].status = body.new_status;
+      if (body.required_next_action) cases[idx].required_next_action = body.required_next_action;
+      cases[idx].updated_at = new Date().toISOString();
+      saveStoredCases(cases);
+    }
     return { success: true };
   }
 
@@ -241,30 +286,120 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
     return DEMO_KNOWLEDGE_DOCUMENTS;
   }
 
-  // Copilot Chat
+  // Copilot Chat - Dynamic Case-Aware NLP Engine
   if (cleanEndpoint === '/ai/copilot/chat') {
     const msg = (body.message || '').toLowerCase();
-    let ans = `I am analyzing your query regarding the refill workflow. `;
-    if (msg.includes('why') || msg.includes('stuck') || msg.includes('block')) {
-      ans = `This refill is currently stuck because **0 refills remain** on the original prescription. Under Practice SOP §4.2, automated re-authorization is restricted and requires provider review and sign-off.`;
-    } else if (msg.includes('who') || msg.includes('act')) {
-      ans = `The attending physician **Dr. Sarah Wilson** needs to act next. They can authorize the renewal or require an annual encounter.`;
-    } else if (msg.includes('missing')) {
-      ans = `Patient demographics and medication details are 100% verified. No clinical data is missing; only human provider authorization is pending.`;
-    } else {
-      ans = `RxResolve AI classifies this case with 94% confidence. Practice SOP §4.2 applies. Routing to provider queue recommended.`;
-    }
-    return {
-      answer: ans,
-      confidence: 0.94,
-      recommended_next_step: 'Provider renewal authorization',
-      sources: [
+    const cases = getStoredCases();
+    const activeCase = (body.case_id ? cases.find((c) => c.id === body.case_id) : null) || cases[0];
+    const patient = activeCase?.patient_name || 'Alex Johnson';
+    const med = activeCase?.medication_name || 'Demo Medication 10mg';
+    const dosage = activeCase?.dosage || '10mg PO Daily';
+    const blocker = activeCase?.blocker || 'No refills remaining';
+    const category = activeCase?.blocker_category || 'Provider-related';
+    const owner = activeCase?.owner_name || 'Dr. Sarah Wilson';
+    const ownerRole = (activeCase?.owner_role || 'PROVIDER').replace('_', ' ');
+    const sla = activeCase?.sla_hours_remaining ?? 18.0;
+    const cid = activeCase?.id || 'RX-10482';
+
+    let ans = '';
+    let sources = [
+      {
+        source: 'Practice SOP §4.2',
+        title: 'Zero Refills Remaining Renewal Protocol',
+        category: 'Practice SOPs'
+      }
+    ];
+
+    if (msg.includes('why') || msg.includes('stuck') || msg.includes('block') || msg.includes('reason') || msg.includes('delay')) {
+      ans = `### Operational Root Cause for **${cid}**\n\n` +
+        `• **Primary Blocker:** **${blocker}** (${category})\n` +
+        `• **Patient:** ${patient} (${med} ${dosage})\n` +
+        `• **Why it's on hold:** The prescription has zero refills remaining. Under **Practice SOP §4.2**, care coordinators cannot independently re-authorize this maintenance medication without physician evaluation.\n` +
+        `• **SLA Clock:** **${sla}h remaining** before compliance threshold.`;
+    } else if (msg.includes('who') || msg.includes('act') || msg.includes('owner') || msg.includes('responsib')) {
+      ans = `### Current Ownership for **${cid}**\n\n` +
+        `• **Responsible Person:** **${owner}** (${ownerRole})\n` +
+        `• **Required Action:** Clinical sign-off and authorization of 3 refills (90-day supply).\n` +
+        `• **If Provider is unavailable:** Maya Lin (Practice Staff) can reroute to covering physician or offer a 30-day bridging refill if an annual visit is scheduled.`;
+      sources = [
         {
-          source: 'Practice Refill SOP §4.2',
-          title: 'Zero Refills Remaining Renewal Protocol',
+          source: 'Practice SOP §6.1',
+          title: 'Covering Provider & Urgent Escalation Protocol',
           category: 'Practice SOPs'
         }
-      ]
+      ];
+    } else if (msg.includes('missing') || msg.includes('complet') || msg.includes('info') || msg.includes('lack')) {
+      ans = `### Information Completeness Check for **${cid}**\n\n` +
+        `• ✓ **Patient Demographics:** Verified (${patient}, DOB: ${activeCase?.patient_dob || '1988-04-14'})\n` +
+        `• ✓ **Medication & Strength:** Verified (${med}, ${dosage})\n` +
+        `• ✓ **Pharmacy Routing:** Verified (${activeCase?.pharmacy_name || 'Downtown Pharmacy'})\n` +
+        `• ✓ **Clinical Chart History:** Encounters within last 6 months documented\n` +
+        `• ⚠ **Pending Item:** Provider electronic sign-off is the sole remaining requirement.`;
+    } else if (msg.includes('next') || msg.includes('recommend') || msg.includes('step') || msg.includes('what should')) {
+      ans = `### Recommended Next Workflow Steps for **${cid}**\n\n` +
+        `1. **Provider Review:** Dr. Sarah Wilson opens the case and clicks **Authorize Renewal**.\n` +
+        `2. **State Transition:** Case automatically advances to \`ACTION_REQUIRED\`.\n` +
+        `3. **NCPDP Dispatch:** RxResolve transmits approved electronic renewal to dispensing pharmacy via Surescripts.\n` +
+        `4. **Patient Notification:** Patient receives automated SMS confirming refill approval.`;
+    } else if (msg.includes('policy') || msg.includes('sop') || msg.includes('0 refill') || msg.includes('zero refill') || msg.includes('rule')) {
+      ans = `### Practice SOP §4.2: Zero Refills Remaining Policy\n\n` +
+        `• **Mandatory Rule:** When an existing prescription reaches 0 refills, automated renewals are suspended.\n` +
+        `• **Threshold:** Maintenance medications with documented encounters in the past 12 months qualify for expedited provider renewal with a **24-hour SLA**.\n` +
+        `• **Overdue Encounters (>12 mo):** Provider must select **Require Visit** and may grant a 30-day emergency bridge supply.`;
+      sources = [
+        {
+          source: 'Practice SOP §4.2',
+          title: 'Zero Refills Remaining Renewal Protocol',
+          category: 'Practice SOPs'
+        },
+        {
+          source: 'Admin Rule §8.0',
+          title: 'Annual Encounter & Chronic Care Monitoring Policy',
+          category: 'Administrative Rules'
+        }
+      ];
+    } else if (msg.includes('sla') || msg.includes('tier') || msg.includes('time') || msg.includes('hour')) {
+      ans = `### SLA Compliance & Operational Tiers\n\n` +
+        `• **Target Turnaround:** **24.0 hours** from intake to resolution\n` +
+        `• **Warning Threshold:** **8.0 hours** remaining (Amber alert sent to practice queue)\n` +
+        `• **Breach Threshold:** **< 2.0 hours** remaining (Red escalation flag)\n` +
+        `• **Current Performance:** **94.7%** network-wide SLA compliance rate with **4.2h** average resolution time.`;
+      sources = [
+        {
+          source: 'Internal SLA Policy §1.4',
+          title: 'Refill Resolution Response Timelines',
+          category: 'Administrative Rules'
+        }
+      ];
+    } else if (msg.includes('summar') || msg.includes('brief') || msg.includes('tell me') || msg.includes('case')) {
+      ans = `### Case Summary: **${cid}**\n\n` +
+        `• **Patient:** ${patient} | **Rx:** ${med} (${dosage})\n` +
+        `• **Dispensing Location:** ${activeCase?.pharmacy_name || 'Downtown Pharmacy'}\n` +
+        `• **Issue:** Refills exhausted (0 remaining). Patient has 2 doses left.\n` +
+        `• **Recommendation:** Route to Dr. Sarah Wilson for 90-day renewal authorization.\n` +
+        `• **Status:** Waiting for Provider review (${sla}h SLA clock).`;
+    } else if (msg.includes('approve') || msg.includes('authorize') || msg.includes('sign')) {
+      ans = `### Provider Authorization Guide\n\n` +
+        `• To approve this refill as Dr. Sarah Wilson:\n` +
+        `  1. Ensure your active persona is **Provider (Dr.)** (use the top banner switcher).\n` +
+        `  2. Click the green **Authorize Renewal** button in the Clinical Decisions panel.\n` +
+        `  3. Confirm the 3 refills / 90-day supply.\n` +
+        `  4. The prescription is immediately queued for digital dispatch to the pharmacy.`;
+    } else {
+      ans = `Hello! I am your **RxResolve Copilot**, grounded in organizational clinical SOPs and active refill queues.\n\n` +
+        `You can ask me:\n` +
+        `• *"Why is case ${cid} stuck?"*\n` +
+        `• *"Who needs to act on ${patient}'s refill?"*\n` +
+        `• *"What is our SOP on 0 refills remaining?"*\n` +
+        `• *"Explain our operational SLA tiers"*\n` +
+        `• *"Summarize this case and recommended action"*`;
+    }
+
+    return {
+      answer: ans,
+      confidence: 0.96,
+      recommended_next_step: activeCase?.required_next_action || 'Provider renewal review',
+      sources
     };
   }
 
