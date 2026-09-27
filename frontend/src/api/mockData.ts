@@ -397,11 +397,11 @@ export const DEMO_AUDIT_LOGS: AuditLogItem[] = [
     previous_state: null as any,
     new_state: "NEW",
     confidence: 1.0,
-    details: { source: "Surescripts Portal", patient: "Alex Johnson" }
+    details: { source: "Surescripts NCPDP", patient: "Alex Johnson", medication: "Demo Medication 10mg" }
   },
   {
     id: "aud-02",
-    timestamp: hoursAgo(5),
+    timestamp: hoursAgo(5.8),
     case_id: "RX-10482",
     actor_type: "AI",
     actor_id: "rxresolve-ai",
@@ -412,11 +412,11 @@ export const DEMO_AUDIT_LOGS: AuditLogItem[] = [
     previous_state: "NEW",
     new_state: "TRIAGING",
     confidence: 0.94,
-    details: { primary_blocker: "No refills remaining", category: "Provider-related" }
+    details: { primary_blocker: "No refills remaining", category: "Provider-related", sop_applied: "Practice SOP §4.2" }
   },
   {
     id: "aud-03",
-    timestamp: hoursAgo(4),
+    timestamp: hoursAgo(4.5),
     case_id: "RX-10482",
     actor_type: "HUMAN",
     actor_id: "usr-pract-01",
@@ -428,6 +428,96 @@ export const DEMO_AUDIT_LOGS: AuditLogItem[] = [
     new_state: "WAITING_FOR_PROVIDER",
     confidence: 1.0,
     details: { assigned_provider: "Dr. Sarah Wilson", sla_window: "24h" }
+  },
+  {
+    id: "aud-04",
+    timestamp: hoursAgo(3.2),
+    case_id: "RX-10484",
+    actor_type: "AI",
+    actor_id: "rxresolve-ai",
+    actor_name: "RxResolve AI",
+    actor_role: "SYSTEM",
+    action: "PRIOR_AUTH_DETECTED",
+    event_type: "AI_INFERENCE",
+    previous_state: "NEW",
+    new_state: "WAITING_FOR_INSURANCE",
+    confidence: 0.91,
+    details: { payer: "BCBS_IL_60054", requirement: "Electronic Prior Authorization (ePA)" }
+  },
+  {
+    id: "aud-05",
+    timestamp: hoursAgo(2.8),
+    case_id: "RX-10487",
+    actor_type: "HUMAN",
+    actor_id: "usr-prov-01",
+    actor_name: "Dr. Sarah Wilson, MD",
+    actor_role: "PROVIDER",
+    action: "AUTHORIZE_RENEWAL",
+    event_type: "WORKFLOW_TRANSITION",
+    previous_state: "WAITING_FOR_PROVIDER",
+    new_state: "ACTION_REQUIRED",
+    confidence: 1.0,
+    details: { decision: "APPROVE", refills_approved: 3, days_supply: 90 }
+  },
+  {
+    id: "aud-06",
+    timestamp: hoursAgo(2.1),
+    case_id: "RX-10485",
+    actor_type: "HUMAN",
+    actor_id: "usr-pract-01",
+    actor_name: "Maya Lin, BSN",
+    actor_role: "PRACTICE_STAFF",
+    action: "CLARIFICATION_SENT",
+    event_type: "WORKFLOW_TRANSITION",
+    previous_state: "INVESTIGATING",
+    new_state: "WAITING_FOR_PHARMACY",
+    confidence: 1.0,
+    details: { target_pharmacy: "Downtown Pharmacy", question: "Packaging and day supply confirmation" }
+  },
+  {
+    id: "aud-07",
+    timestamp: hoursAgo(1.5),
+    case_id: "RX-10490",
+    actor_type: "SYSTEM",
+    actor_id: "sla-monitor",
+    actor_name: "RxResolve SLA Monitor",
+    actor_role: "SYSTEM",
+    action: "SLA_BREACH_WARNING",
+    event_type: "WORKFLOW_TRANSITION",
+    previous_state: "WAITING_FOR_PROVIDER",
+    new_state: "ESCALATED",
+    confidence: 1.0,
+    details: { hours_remaining: 1.0, escalation_reason: "Controlled substance protocol requires clinic encounter" }
+  },
+  {
+    id: "aud-08",
+    timestamp: hoursAgo(0.8),
+    case_id: "RX-10491",
+    actor_type: "SYSTEM",
+    actor_id: "integration-gateway",
+    actor_name: "EHR Clinical Bridge",
+    actor_role: "SYSTEM",
+    action: "GATEWAY_TIMEOUT_DURABLE_BUFFER",
+    event_type: "INTEGRATION_RECOVERY",
+    previous_state: "INVESTIGATING",
+    new_state: "FAILED",
+    confidence: 1.0,
+    details: { gateway: "Epic FHIR R4", error: "Gateway 504 Gateway Timeout - Preserved in isolation queue" }
+  },
+  {
+    id: "aud-09",
+    timestamp: hoursAgo(0.4),
+    case_id: "RX-10488",
+    actor_type: "HUMAN",
+    actor_id: "usr-pharm-01",
+    actor_name: "Elena Rostova, CPhT",
+    actor_role: "PHARMACY_STAFF",
+    action: "DISPENSE_CONFIRMED",
+    event_type: "WORKFLOW_TRANSITION",
+    previous_state: "ACTION_REQUIRED",
+    new_state: "RESOLVED",
+    confidence: 1.0,
+    details: { rx_number: "RX-8849102", status: "Dispensed and ready for patient pickup" }
   }
 ];
 
@@ -510,27 +600,51 @@ export const DEMO_NOTIFICATIONS: NotificationItem[] = [
 
 export const DEMO_KNOWLEDGE_DOCUMENTS: KnowledgeDoc[] = [
   {
-    id: "sop-01",
-    source_name: "Practice SOP §4.2",
-    title: "Zero Refills Remaining Renewal Protocol",
+    id: "kb-sop-001",
+    source_name: "Practice Refill SOP §4.2",
+    title: "Provider Authorization & Refill Sign-Off Policy",
     category: "Practice SOPs",
-    content: "When an existing prescription has zero (0) refills remaining, standard protocol dictates that an explicit provider authorization is required. Routine maintenance medications with clean visit history (<6 months) may be queued directly for Dr. review with a 24-hour target turnaround.",
-    keywords: ["0 Refills", "Maintenance Rx", "Provider Review", "24h SLA"]
+    content: "When an existing prescription has zero (0) refills remaining, standard protocol dictates that an explicit provider authorization is required. Practice staff may not re-authorize refills independently without provider review if the last documented clinical encounter exceeded 6 months or if dosage adjustments occurred. Routine maintenance medications with clean visit history (<6 months) may be queued directly for Dr. review with a 24-hour target turnaround.",
+    keywords: ["0 Refills", "Zero Refills", "Provider Review", "Authorization", "Sign-Off", "Prescription Expired"]
   },
   {
-    id: "sop-02",
-    source_name: "Practice SOP §6.1",
-    title: "Annual Encounter & Clinical Monitoring Policy",
+    id: "kb-sop-002",
+    source_name: "Clinical Intake SOP §2.1",
+    title: "Missing Information & Pharmacy Clarification SOP",
     category: "Practice SOPs",
-    content: "For chronic maintenance medications (e.g. anti-hypertensives, statins, diabetes management), an in-person or synchronous telehealth visit within the past 12 months is required to authorize renewals.",
-    keywords: ["Annual Visit", "Hypertension", "Diabetes", "Bridge Supply"]
+    content: "A refill request missing key dispensing parameters (such as NDC, quantity dispensed, explicit day supply, or patient address verification) must be transitioned to WAITING_FOR_INFORMATION. Practice staff must initiate a structured inquiry to the requesting pharmacy. Cases in WAITING_FOR_PHARMACY for >48 hours without response shall be escalated to the supervising triage coordinator.",
+    keywords: ["Missing Information", "Pharmacy Clarification", "Quantity", "Dosage", "NDC", "Unverified"]
   },
   {
-    id: "sop-03",
-    source_name: "Admin Rule §8.0",
+    id: "kb-admin-001",
+    source_name: "Administrative & PBM Guidelines v3",
     title: "Prior Authorization & Formulary Exception Routing",
     category: "Administrative Rules",
-    content: "If a refill request triggers a PBM formulary reject or prior authorization requirement, the case must be categorized as Insurance/Administrative and assigned to Practice Staff within 4 hours.",
-    keywords: ["Prior Authorization", "PBM", "Formulary", "CoverMyMeds"]
+    content: "Refill requests rejected for 'PA Required' or formulary tier restrictions must undergo electronic Prior Authorization (ePA). The clinical coordinator must verify chart notes documenting previous step-therapy failure or diagnosis ICD-10 justification before routing the CoverMyMeds/Surescripts ePA request to the payer.",
+    keywords: ["Prior Authorization", "PBM", "Formulary", "CoverMyMeds", "Denial", "Step Therapy"]
+  },
+  {
+    id: "kb-admin-002",
+    source_name: "Compliance & Medical Board Standard §8",
+    title: "Annual Patient Encounter & Monitoring Requirement",
+    category: "Administrative Rules",
+    content: "For chronic maintenance medications (e.g. anti-hypertensives, statins, diabetes management), an in-person or synchronous telehealth visit within the past 12 months is legally required to authorize renewals. If the patient has not had a visit in >12 months, the provider should select 'Require Visit' and offer a bridging 30-day supply where medically appropriate.",
+    keywords: ["Annual Visit", "Hypertension", "Diabetes", "Bridge Supply", "Appointment", "Follow-up"]
+  },
+  {
+    id: "kb-workflow-001",
+    source_name: "Internal Workflow Rules §1.4",
+    title: "Refill Operational SLA & Escalation Rules",
+    category: "Internal Workflow Rules",
+    content: "Standard operational target resolution time for outpatient refills is 24 hours. Critical priority cases (life-sustaining or high-risk medications) have an SLA of 4 hours. High priority cases have an SLA of 12 hours. Any case pending in WAITING_FOR_PROVIDER for more than 18 hours is automatically designated AT RISK and escalated to the practice manager.",
+    keywords: ["SLA", "Escalation", "Hours", "Timeline", "Priority", "At Risk", "Urgent"]
+  },
+  {
+    id: "kb-workflow-002",
+    source_name: "Operations Quality & Audit SOP §5",
+    title: "Inter-Organizational Communication & Audit Trail",
+    category: "Internal Workflow Rules",
+    content: "All communications between Pharmacy Staff and Physician Practice Staff must be documented directly in the case ledger. AI-drafted messages require human verification before transmission. System integration failures (EHR FHIR or Surescripts timeout) must trigger automatic retry with exponential backoff and flag the case as degraded without data loss.",
+    keywords: ["Communication", "Audit", "Integration", "Timeout", "EHR", "Failure", "Retry"]
   }
 ];

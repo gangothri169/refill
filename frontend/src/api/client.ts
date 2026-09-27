@@ -7,13 +7,14 @@ import {
   DEMO_NOTIFICATIONS,
   DEMO_KNOWLEDGE_DOCUMENTS
 } from './mockData';
-import { RefillCase, AuditLogItem } from '../types';
+import { RefillCase, AuditLogItem, IntegrationServiceItem } from '../types';
 
 const API_BASE = ((import.meta as any).env?.VITE_API_URL as string) || '/api';
 
 // --- Local Storage Stateful Mock Store ---
 const STORAGE_KEY_CASES = 'rxresolve_mock_cases';
 const STORAGE_KEY_AUDITS = 'rxresolve_mock_audits';
+const STORAGE_KEY_INTEGRATIONS = 'rxresolve_mock_integrations';
 
 function getStoredCases(): RefillCase[] {
   try {
@@ -42,6 +43,21 @@ function getStoredAudits(): AuditLogItem[] {
 function saveStoredAudits(audits: AuditLogItem[]) {
   try {
     localStorage.setItem(STORAGE_KEY_AUDITS, JSON.stringify(audits));
+  } catch {}
+}
+
+function getStoredIntegrations(): IntegrationServiceItem[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_INTEGRATIONS);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  localStorage.setItem(STORAGE_KEY_INTEGRATIONS, JSON.stringify(DEMO_INTEGRATIONS));
+  return DEMO_INTEGRATIONS;
+}
+
+function saveStoredIntegrations(items: IntegrationServiceItem[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY_INTEGRATIONS, JSON.stringify(items));
   } catch {}
 }
 
@@ -170,6 +186,26 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
     };
     cases.unshift(newCase);
     saveStoredCases(cases);
+
+    // Append Audit Log for case creation
+    const audits = getStoredAudits();
+    audits.unshift({
+      id: `aud-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      case_id: newId,
+      actor_type: 'HUMAN',
+      actor_id: 'usr-pharm-01',
+      actor_name: 'Elena Rostova, CPhT',
+      actor_role: 'PHARMACY_STAFF',
+      action: 'CREATE_REFILL_CASE',
+      event_type: 'CASE_CREATION',
+      previous_state: undefined,
+      new_state: 'TRIAGING',
+      confidence: 1.0,
+      details: { patient: newCase.patient_name, medication: newCase.medication_name, blocker: newCase.blocker }
+    });
+    saveStoredAudits(audits);
+
     return newCase;
   }
 
@@ -180,6 +216,7 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
     const cases = getStoredCases();
     const idx = cases.findIndex((c) => c.id === caseId);
     if (idx !== -1) {
+      const prevStatus = cases[idx].status;
       if (body.decision === 'APPROVE') {
         cases[idx].status = 'ACTION_REQUIRED';
         cases[idx].required_next_action = 'Approved by provider; dispatching electronic prescription';
@@ -194,6 +231,26 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
       }
       cases[idx].updated_at = new Date().toISOString();
       saveStoredCases(cases);
+
+      // Append Audit Log for provider determination
+      const audits = getStoredAudits();
+      audits.unshift({
+        id: `aud-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        case_id: caseId,
+        actor_type: 'HUMAN',
+        actor_id: 'usr-prov-01',
+        actor_name: 'Dr. Sarah Wilson, MD',
+        actor_role: 'PROVIDER',
+        action: body.decision === 'APPROVE' ? 'AUTHORIZE_RENEWAL' : 'PROVIDER_DECISION',
+        event_type: 'WORKFLOW_TRANSITION',
+        previous_state: prevStatus,
+        new_state: cases[idx].status,
+        confidence: 1.0,
+        details: { decision: body.decision, notes: body.notes || 'Provider clinical determination recorded' }
+      });
+      saveStoredAudits(audits);
+
       return cases[idx];
     }
     return { success: true };
@@ -254,21 +311,103 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
     return DEMO_ANALYTICS;
   }
 
-  // Audit Logs
+  // Audit Logs - with complete dynamic parameter filtering
   if (cleanEndpoint.startsWith('/audit')) {
-    return getStoredAudits();
+    let logs = getStoredAudits();
+
+    try {
+      const urlObj = new URL('http://local' + (endpoint.startsWith('/') ? endpoint : '/' + endpoint));
+      const fCaseId = urlObj.searchParams.get('case_id')?.trim().toLowerCase();
+      const fActor = urlObj.searchParams.get('actor_type')?.trim().toUpperCase();
+      const fEvent = urlObj.searchParams.get('event_type')?.trim().toUpperCase();
+      const fSearch = urlObj.searchParams.get('search')?.trim().toLowerCase();
+
+      if (fCaseId) {
+        logs = logs.filter((l) => (l.case_id || '').toLowerCase().includes(fCaseId));
+      }
+      if (fActor && fActor !== 'ALL') {
+        logs = logs.filter((l) => (l.actor_type || '').toUpperCase() === fActor);
+      }
+      if (fEvent && fEvent !== 'ALL') {
+        logs = logs.filter((l) => (l.event_type || '').toUpperCase() === fEvent);
+      }
+      if (fSearch) {
+        logs = logs.filter((l) =>
+          (l.action || '').toLowerCase().includes(fSearch) ||
+          (l.actor_name || '').toLowerCase().includes(fSearch) ||
+          (l.case_id || '').toLowerCase().includes(fSearch) ||
+          JSON.stringify(l.details || {}).toLowerCase().includes(fSearch)
+        );
+      }
+    } catch {}
+
+    return logs;
   }
 
-  // Integrations & Health
+  // Integrations & Health - Stateful with local storage
   if (cleanEndpoint === '/integrations') {
-    return DEMO_INTEGRATIONS;
+    return getStoredIntegrations();
   }
+
+  // Retry degraded integration bridge -> immediately recovers to HEALTHY
   if (cleanEndpoint.includes('/retry') && method === 'POST') {
-    return { success: true, message: 'Retry initiated' };
+    const idMatch = cleanEndpoint.match(/^\/integrations\/([A-Za-z0-9_-]+)\/retry$/);
+    const intId = idMatch ? idMatch[1] : '';
+    const items = getStoredIntegrations();
+    const idx = items.findIndex((i) => i.id === intId);
+    if (idx !== -1) {
+      items[idx].status = 'HEALTHY';
+      items[idx].simulate_failure = false;
+      delete items[idx].last_error;
+      items[idx].latency_ms = Math.floor(Math.random() * 30) + 25;
+      items[idx].success_rate = 99.8;
+      items[idx].last_sync = new Date().toISOString();
+      saveStoredIntegrations(items);
+
+      // Append Audit Log for resilience testing
+      const audits = getStoredAudits();
+      audits.unshift({
+        id: `aud-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        actor_type: 'HUMAN',
+        actor_id: 'usr-admin-01',
+        actor_name: 'Marcus Vance',
+        actor_role: 'ADMIN',
+        action: 'INTEGRATION_RECOVERY',
+        event_type: 'INTEGRATION_RECOVERY',
+        confidence: 1.0,
+        details: { integration: items[idx].name, status: 'Recovered to HEALTHY status via automated retry' }
+      });
+      saveStoredAudits(audits);
+    }
+    return { success: true, message: 'Gateway recovered' };
   }
+
+  // Toggle simulated failure on integration bridge
   if (cleanEndpoint.includes('/toggle-failure') && method === 'POST') {
+    const idMatch = cleanEndpoint.match(/^\/integrations\/([A-Za-z0-9_-]+)\/toggle-failure$/);
+    const intId = idMatch ? idMatch[1] : '';
+    const items = getStoredIntegrations();
+    const idx = items.findIndex((i) => i.id === intId);
+    if (idx !== -1) {
+      const isNowDegraded = items[idx].status === 'HEALTHY';
+      items[idx].status = isNowDegraded ? 'DEGRADED' : 'HEALTHY';
+      items[idx].simulate_failure = isNowDegraded;
+      if (isNowDegraded) {
+        items[idx].last_error = 'Gateway timeout on transaction 278-PA-9921 (PBM timeout)';
+        items[idx].latency_ms = 1420;
+        items[idx].success_rate = 84.6;
+      } else {
+        delete items[idx].last_error;
+        items[idx].latency_ms = Math.floor(Math.random() * 40) + 30;
+        items[idx].success_rate = 99.9;
+      }
+      items[idx].last_sync = new Date().toISOString();
+      saveStoredIntegrations(items);
+    }
     return { success: true };
   }
+
   if (cleanEndpoint === '/health') {
     return { status: 'HEALTHY', demo_mode: true, subsystems: { api: { status: 'HEALTHY' }, database: { status: 'HEALTHY' } } };
   }
@@ -281,8 +420,23 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
     return { success: true };
   }
 
-  // Knowledge Base
+  // Knowledge Base - Supports both listing and keyword search
   if (cleanEndpoint.startsWith('/knowledge')) {
+    if (cleanEndpoint.includes('/search')) {
+      try {
+        const urlObj = new URL('http://local' + (endpoint.startsWith('/') ? endpoint : '/' + endpoint));
+        const q = (urlObj.searchParams.get('q') || '').toLowerCase().trim();
+        if (!q) return DEMO_KNOWLEDGE_DOCUMENTS;
+        return DEMO_KNOWLEDGE_DOCUMENTS.filter((d) =>
+          d.title.toLowerCase().includes(q) ||
+          d.content.toLowerCase().includes(q) ||
+          d.category.toLowerCase().includes(q) ||
+          d.keywords?.some((k) => k.toLowerCase().includes(q))
+        );
+      } catch {
+        return DEMO_KNOWLEDGE_DOCUMENTS;
+      }
+    }
     return DEMO_KNOWLEDGE_DOCUMENTS;
   }
 

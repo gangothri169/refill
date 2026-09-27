@@ -45,6 +45,8 @@ export const KnowledgeBasePage: React.FC = () => {
     return matchesCat && matchesSearch;
   });
 
+  const [activeDoc, setActiveDoc] = useState<KnowledgeDoc | null>(null);
+
   return (
     <div className="p-8 space-y-7 max-w-7xl mx-auto">
       {/* Header */}
@@ -109,7 +111,8 @@ export const KnowledgeBasePage: React.FC = () => {
         {filteredDocs.map((doc) => (
           <div
             key={doc.id}
-            className="glass-card-interactive rounded-2xl p-5 space-y-4 flex flex-col justify-between"
+            onClick={() => setActiveDoc(doc)}
+            className="glass-card-interactive rounded-2xl p-5 space-y-4 flex flex-col justify-between cursor-pointer group"
           >
             <div className="space-y-3">
               <div className="flex items-start justify-between gap-2">
@@ -121,7 +124,7 @@ export const KnowledgeBasePage: React.FC = () => {
                 </span>
               </div>
 
-              <h3 className="text-sm font-bold text-slate-900 leading-snug tracking-tight">
+              <h3 className="text-sm font-bold text-slate-900 leading-snug tracking-tight group-hover:text-blue-600 transition-colors">
                 {doc.title}
               </h3>
 
@@ -143,11 +146,72 @@ export const KnowledgeBasePage: React.FC = () => {
                   </span>
                 ))}
               </div>
-              <span className="font-mono text-slate-400 font-medium">v2.4 Active</span>
+              <span className="text-blue-600 font-medium group-hover:underline flex items-center gap-1">
+                Read Full Policy <ArrowRight className="w-3 h-3" />
+              </span>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Interactive Policy Document Modal */}
+      {activeDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+          <div className="glass-modal max-w-2xl w-full p-6 sm:p-7 rounded-3xl space-y-5 border border-white shadow-2xl relative">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] uppercase font-bold font-mono px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-700 border border-blue-400/20">
+                    {activeDoc.category}
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    Ref: {activeDoc.source_name}
+                  </span>
+                </div>
+                <h2 className="text-lg font-bold text-slate-900 mt-1.5">{activeDoc.title}</h2>
+              </div>
+              <button
+                onClick={() => setActiveDoc(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition shrink-0"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/60 text-xs text-slate-700 leading-relaxed font-sans">
+              <h4 className="font-bold text-slate-900 mb-1 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-blue-600" />
+                <span>Full Protocol & Operational Policy:</span>
+              </h4>
+              <p className="mt-1">{activeDoc.content}</p>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold text-slate-800">RAG Grounding & AI Inference Tags:</h4>
+              <div className="flex flex-wrap gap-1.5">
+                {activeDoc.keywords?.map((kw, i) => (
+                  <span
+                    key={i}
+                    className="bg-blue-500/10 text-blue-800 text-[11px] font-mono px-2.5 py-1 rounded-lg border border-blue-400/20"
+                  >
+                    #{kw}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-200/60 flex items-center justify-between text-xs">
+              <span className="text-slate-400 font-mono">Status: Verified & Active in RAG Index</span>
+              <button
+                onClick={() => setActiveDoc(null)}
+                className="apple-btn-primary px-5 py-2 text-xs font-semibold"
+              >
+                Close Protocol
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
