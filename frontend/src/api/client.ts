@@ -238,7 +238,7 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
 
   // Knowledge Base
   if (cleanEndpoint.startsWith('/knowledge')) {
-    return { documents: DEMO_KNOWLEDGE_DOCUMENTS, total: DEMO_KNOWLEDGE_DOCUMENTS.length };
+    return DEMO_KNOWLEDGE_DOCUMENTS;
   }
 
   // Copilot Chat

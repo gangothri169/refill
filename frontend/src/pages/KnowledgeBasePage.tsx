@@ -23,7 +23,7 @@ export const KnowledgeBasePage: React.FC = () => {
     async function load() {
       try {
         const res = await api.getKnowledge();
-        setDocs(res);
+        setDocs(Array.isArray(res) ? res : (res && res.documents) || []);
       } catch (err) {
         console.error(err);
       } finally {
