@@ -1,4 +1,4 @@
-const API_BASE = '/api';
+const API_BASE = ((import.meta as any).env?.VITE_API_URL as string) || '/api';
 
 export async function apiRequest<T = any>(
   endpoint: string,
@@ -11,7 +11,9 @@ export async function apiRequest<T = any>(
     ...(options.headers || {}),
   };
 
-  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+  const base = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+  const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = endpoint.startsWith('http') ? endpoint : `${base}${path}`;
 
   const res = await fetch(url, {
     ...options,
