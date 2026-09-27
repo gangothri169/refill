@@ -46,6 +46,7 @@ export const CaseDetailPage: React.FC = () => {
   const [newMessage, setNewMessage] = useState('');
   const [recipientRole, setRecipientRole] = useState('PRACTICE_STAFF');
   const [draftingAI, setDraftingAI] = useState(false);
+  const [isAiDrafted, setIsAiDrafted] = useState(false);
 
   // Human decision confirmation modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -124,10 +125,14 @@ export const CaseDetailPage: React.FC = () => {
     try {
       await api.sendMessage(id, {
         recipient_role: recipientRole,
-        content: newMessage,
-        is_ai_drafted: false
+        content: newMessage.trim(),
+        is_ai_drafted: isAiDrafted,
+        sender_id: user?.id,
+        sender_name: user?.name,
+        sender_role: user?.role
       });
       setNewMessage('');
+      setIsAiDrafted(false);
       await fetchFullCase();
     } catch (err: any) {
       alert(`Failed to send message: ${err.message}`);
@@ -136,7 +141,7 @@ export const CaseDetailPage: React.FC = () => {
 
   // Handle AI Drafting Communication
   const handleDraftAI = async () => {
-    if (!id) return;
+    if (!id || !caseData) return;
     setDraftingAI(true);
     try {
       const targetRole = user?.role === 'PHARMACY_STAFF' ? 'PRACTICE_STAFF' : 'PHARMACY_STAFF';
@@ -148,6 +153,7 @@ export const CaseDetailPage: React.FC = () => {
       });
       setNewMessage(draft.body);
       setRecipientRole(targetRole);
+      setIsAiDrafted(true);
     } catch (err: any) {
       alert(`AI Draft failed: ${err.message}`);
     } finally {
@@ -521,55 +527,67 @@ export const CaseDetailPage: React.FC = () => {
 
             {/* Provider Actions */}
             {user?.role === 'PROVIDER' && (
-              <div className="space-y-2.5">
-                <div className="p-3 bg-blue-500/10 border border-blue-400/30 rounded-2xl text-xs text-blue-950 leading-snug backdrop-blur-md">
-                  <span className="font-bold text-blue-900">Attending Provider Decision Required: </span>
-                  Review case details, patient encounter history, and authorize or direct next clinical action.
+              caseData.status === 'APPROVED' ? (
+                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-400/30 text-emerald-950 space-y-1.5 backdrop-blur-md">
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-800">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Prescription Renewal Authorized</span>
+                  </div>
+                  <p className="text-xs text-emerald-700 leading-relaxed font-medium">
+                    You have authorized this refill. The renewal electronic script has been dispatched via Surescripts to {caseData.pharmacy_name}.
+                  </p>
                 </div>
-
-                <button
-                  onClick={() => {
-                    setDecisionType('APPROVE');
-                    setModalOpen(true);
-                  }}
-                  className="w-full py-2.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 border border-white/20"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Authorize Prescription Renewal</span>
-                </button>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => {
-                      setDecisionType('REQUIRE_VISIT');
-                      setModalOpen(true);
-                    }}
-                    className="py-2 px-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-xs rounded-xl shadow-xs active:scale-95 transition-all border border-white/20"
-                  >
-                    Require Visit
-                  </button>
+              ) : (
+                <div className="space-y-2.5">
+                  <div className="p-3 bg-blue-500/10 border border-blue-400/30 rounded-2xl text-xs text-blue-950 leading-snug backdrop-blur-md">
+                    <span className="font-bold text-blue-900">Attending Provider Decision Required: </span>
+                    Review case details, patient encounter history, and authorize or direct next clinical action.
+                  </div>
 
                   <button
                     onClick={() => {
-                      setDecisionType('REQUEST_INFO');
+                      setDecisionType('APPROVE');
                       setModalOpen(true);
                     }}
-                    className="py-2 px-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-semibold text-xs rounded-xl shadow-xs active:scale-95 transition-all border border-white/20"
+                    className="w-full py-2.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 border border-white/20"
                   >
-                    Request Info
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Authorize Prescription Renewal</span>
+                  </button>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => {
+                        setDecisionType('REQUIRE_VISIT');
+                        setModalOpen(true);
+                      }}
+                      className="py-2 px-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-xs rounded-xl shadow-xs active:scale-95 transition-all border border-white/20"
+                    >
+                      Require Visit
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setDecisionType('REQUEST_INFO');
+                        setModalOpen(true);
+                      }}
+                      className="py-2 px-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-semibold text-xs rounded-xl shadow-xs active:scale-95 transition-all border border-white/20"
+                    >
+                      Request Info
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setDecisionType('DECLINE');
+                      setModalOpen(true);
+                    }}
+                    className="w-full py-2 px-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-700 border border-rose-400/30 font-semibold text-xs rounded-xl transition-all active:scale-95"
+                  >
+                    Decline Refill Request
                   </button>
                 </div>
-
-                <button
-                  onClick={() => {
-                    setDecisionType('DECLINE');
-                    setModalOpen(true);
-                  }}
-                  className="w-full py-2 px-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-700 border border-rose-400/30 font-semibold text-xs rounded-xl transition-all active:scale-95"
-                >
-                  Decline Refill Request
-                </button>
-              </div>
+              )
             )}
 
             {/* Practice Staff Actions */}
@@ -729,7 +747,7 @@ export const CaseDetailPage: React.FC = () => {
                 </div>
               ) : (
                 messages.map((m) => {
-                  const isMe = m.sender_id === user?.id;
+                  const isMe = m.sender_id === user?.id || (m.sender_role === user?.role && m.sender_id !== 'usr-pharm-01');
                   return (
                     <div
                       key={m.id}

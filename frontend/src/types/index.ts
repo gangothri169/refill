@@ -9,6 +9,7 @@ export type CaseStatus =
   | 'WAITING_FOR_PHARMACY'
   | 'WAITING_FOR_INSURANCE'
   | 'ACTION_REQUIRED'
+  | 'APPROVED'
   | 'RESOLVED'
   | 'CANCELLED'
   | 'FAILED'

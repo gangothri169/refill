@@ -15,6 +15,8 @@ const API_BASE = ((import.meta as any).env?.VITE_API_URL as string) || '/api';
 const STORAGE_KEY_CASES = 'rxresolve_mock_cases';
 const STORAGE_KEY_AUDITS = 'rxresolve_mock_audits';
 const STORAGE_KEY_INTEGRATIONS = 'rxresolve_mock_integrations';
+const STORAGE_KEY_COMMUNICATIONS = 'rxresolve_mock_comms';
+const STORAGE_KEY_NOTIFICATIONS = 'rxresolve_mock_notifications';
 
 function getStoredCases(): RefillCase[] {
   try {
@@ -58,6 +60,58 @@ function getStoredIntegrations(): IntegrationServiceItem[] {
 function saveStoredIntegrations(items: IntegrationServiceItem[]) {
   try {
     localStorage.setItem(STORAGE_KEY_INTEGRATIONS, JSON.stringify(items));
+  } catch {}
+}
+
+function getStoredCommunications(caseId: string): any[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_COMMUNICATIONS);
+    const all = raw ? JSON.parse(raw) : {};
+    if (all[caseId] && Array.isArray(all[caseId]) && all[caseId].length > 0) {
+      return all[caseId];
+    }
+  } catch {}
+
+  const initial = [
+    {
+      id: `comm-init-${caseId}`,
+      case_id: caseId,
+      sender_id: 'usr-pharm-01',
+      sender_name: 'Elena Rostova, CPhT',
+      sender_role: 'PHARMACY_STAFF',
+      content: '0 refills remain on original Rx. Patient has 2 doses left at home.',
+      timestamp: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
+      is_ai_drafted: false
+    }
+  ];
+  saveStoredCommunications(caseId, initial);
+  return initial;
+}
+
+function saveStoredCommunications(caseId: string, messages: any[]) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_COMMUNICATIONS);
+    const all = raw ? JSON.parse(raw) : {};
+    all[caseId] = messages;
+    localStorage.setItem(STORAGE_KEY_COMMUNICATIONS, JSON.stringify(all));
+  } catch {}
+}
+
+function getStoredNotifications(): any[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_NOTIFICATIONS);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+  localStorage.setItem(STORAGE_KEY_NOTIFICATIONS, JSON.stringify(DEMO_NOTIFICATIONS));
+  return DEMO_NOTIFICATIONS;
+}
+
+function saveStoredNotifications(notifs: any[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY_NOTIFICATIONS, JSON.stringify(notifs));
   } catch {}
 }
 
@@ -116,15 +170,7 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
 
     const commsMatch = cleanEndpoint.match(/^\/cases\/([A-Za-z0-9_-]+)\/communications$/);
     if (commsMatch) {
-      return [
-        {
-          id: 'comm-01',
-          sender_name: 'Elena Rostova, CPhT',
-          sender_role: 'PHARMACY_STAFF',
-          content: '0 refills remain on original Rx. Patient has 2 doses left at home.',
-          timestamp: new Date().toISOString()
-        }
-      ];
+      return getStoredCommunications(commsMatch[1]);
     }
 
     // List cases
@@ -218,8 +264,13 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
     if (idx !== -1) {
       const prevStatus = cases[idx].status;
       if (body.decision === 'APPROVE') {
-        cases[idx].status = 'ACTION_REQUIRED';
-        cases[idx].required_next_action = 'Approved by provider; dispatching electronic prescription';
+        cases[idx].status = 'APPROVED';
+        cases[idx].blocker = null;
+        cases[idx].blocker_category = null;
+        cases[idx].required_next_action = 'Approved by provider; electronic prescription transmitted to pharmacy';
+        if (cases[idx].information_completeness) {
+          cases[idx].information_completeness.required_review_completed = true;
+        }
       } else if (body.decision === 'REQUIRE_VISIT') {
         cases[idx].status = 'WAITING_FOR_INFORMATION';
         cases[idx].required_next_action = 'Clinic encounter required before renewal';
@@ -247,7 +298,7 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
         previous_state: prevStatus,
         new_state: cases[idx].status,
         confidence: 1.0,
-        details: { decision: body.decision, notes: body.notes || 'Provider clinical determination recorded' }
+        details: { decision: body.decision, notes: body.notes || 'Provider clinical determination recorded', refills_authorized: 3 }
       });
       saveStoredAudits(audits);
 
@@ -268,26 +319,108 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
       cases[idx].status = 'WAITING_FOR_PROVIDER';
       cases[idx].updated_at = new Date().toISOString();
       saveStoredCases(cases);
+
+      // Append Audit Log for assignment
+      const audits = getStoredAudits();
+      audits.unshift({
+        id: `aud-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        case_id: caseId,
+        actor_type: 'HUMAN',
+        actor_id: 'usr-pract-01',
+        actor_name: 'Maya Lin',
+        actor_role: 'PRACTICE_STAFF',
+        action: 'ROUTE_TO_PROVIDER',
+        event_type: 'WORKFLOW_TRANSITION',
+        confidence: 1.0,
+        details: {
+          assigned_to: body.assignee_name || 'Dr. Sarah Wilson',
+          role: body.assignee_role || 'PROVIDER',
+          note: body.note || 'Routed for physician review'
+        }
+      });
+      saveStoredAudits(audits);
     }
     return { success: true };
   }
 
-  // Communications Post
+  // Communications Post - Persists to local storage & logs audit
   if (cleanEndpoint.includes('/communications') && method === 'POST') {
-    return {
+    const commsMatch = cleanEndpoint.match(/^\/cases\/([A-Za-z0-9_-]+)\/communications$/);
+    const caseId = commsMatch ? commsMatch[1] : (body.case_id || 'RX-10482');
+    const existing = getStoredCommunications(caseId);
+
+    const senderName = body.sender_name || 'Care Coordinator';
+    const senderRole = body.sender_role || 'PRACTICE_STAFF';
+    const senderId = body.sender_id || 'usr-pract-01';
+
+    const newComm = {
       id: `comm-${Date.now()}`,
-      sender_name: 'Care Coordinator',
-      sender_role: body.sender_role || 'PRACTICE_STAFF',
+      case_id: caseId,
+      sender_id: senderId,
+      sender_name: senderName,
+      sender_role: senderRole,
+      recipient_role: body.recipient_role || 'PRACTICE_STAFF',
       content: body.content || '',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      is_ai_drafted: Boolean(body.is_ai_drafted)
     };
+
+    existing.push(newComm);
+    saveStoredCommunications(caseId, existing);
+
+    // Append Audit Log for message dispatch
+    const audits = getStoredAudits();
+    audits.unshift({
+      id: `aud-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      case_id: caseId,
+      actor_type: body.is_ai_drafted ? 'AI' : 'HUMAN',
+      actor_id: senderId,
+      actor_name: senderName,
+      actor_role: senderRole,
+      action: 'CARE_TEAM_MESSAGE_SENT',
+      event_type: 'COMMUNICATION',
+      confidence: 1.0,
+      details: {
+        to: body.recipient_role || 'PRACTICE_STAFF',
+        is_ai_drafted: Boolean(body.is_ai_drafted),
+        preview: (body.content || '').slice(0, 60)
+      }
+    });
+    saveStoredAudits(audits);
+
+    return newComm;
   }
 
-  // AI Message Draft
+  // AI Message Draft - Contextually generated based on case & recipient
   if (cleanEndpoint === '/ai/draft-message' && method === 'POST') {
+    const cases = getStoredCases();
+    const caseId = body.case_id || 'RX-10482';
+    const activeCase = cases.find((c) => c.id === caseId) || cases[0];
+    const toRole = body.to_role || 'PRACTICE_STAFF';
+    const patientName = activeCase?.patient_name || 'Patient';
+    const medName = activeCase?.medication_name || 'Prescription';
+    const dosage = activeCase?.dosage || '';
+    const blocker = activeCase?.blocker || 'Zero refills remaining';
+
+    let subject = `Refill Inquiry: ${caseId} (${patientName})`;
+    let draftBody = '';
+
+    if (toRole === 'PROVIDER') {
+      subject = `Urgent Clinical Renewal Review: ${patientName} (${medName})`;
+      draftBody = `Hello Dr. ${activeCase?.provider_name ? activeCase.provider_name.replace('Dr. ', '') : 'Provider'},\n\nRefill request ${caseId} for ${patientName} (${medName} ${dosage}) is awaiting provider clinical review.\n\nCurrent status blocker: ${blocker}.\nPatient chart indicates compliant chronic therapy. Please review encounter history and authorize renewal.\n\nThank you,\nCare Coordination Team`;
+    } else if (toRole === 'PHARMACY_STAFF') {
+      subject = `Prescription Dispensing Coordination: ${patientName} (${medName})`;
+      draftBody = `Hello ${activeCase?.pharmacy_name || 'Pharmacy Operations'},\n\nRegarding refill case ${caseId} for ${patientName} (${medName}):\n\nCare management review is actively processing the refill. Regarding blocker: "${blocker}". Please confirm whether emergency bridge doses have been dispensed or if additional packaging clarification is needed.\n\nBest regards,\nClinical Operations`;
+    } else {
+      subject = `Refill Care Coordination: ${patientName} (${medName})`;
+      draftBody = `Hello Practice Care Team,\n\nFollowing up on refill request ${caseId} for ${patientName} (${medName}).\n\nActive blocker: ${blocker}. The patient has 2 doses remaining at home. Please coordinate with the attending physician to expedite renewal authorization before SLA deadline.\n\nThank you,\n${activeCase?.pharmacy_name || 'Dispensing Pharmacy Staff'}`;
+    }
+
     return {
-      subject: `Prescription Refill Inquiry: ${body.case_id || 'Refill Request'}`,
-      body: `Hello Care Team,\n\nFollowing up regarding the refill request for ${body.case_id || 'this patient'}. The prescription indicates zero refills remaining. Recent clinical monitoring is documented. Please review and authorize the renewal.\n\nThank you,\nClinical Operations`
+      subject,
+      body: draftBody
     };
   }
 
@@ -414,9 +547,24 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
 
   // Notifications
   if (cleanEndpoint === '/notifications') {
-    return DEMO_NOTIFICATIONS;
+    return getStoredNotifications();
   }
-  if (cleanEndpoint.includes('/read')) {
+  if (cleanEndpoint.includes('/notifications') && cleanEndpoint.includes('/read-all') && method === 'POST') {
+    const notifs = getStoredNotifications();
+    notifs.forEach((n) => { n.read = true; });
+    saveStoredNotifications(notifs);
+    return { success: true };
+  }
+  if (cleanEndpoint.includes('/notifications') && cleanEndpoint.includes('/read') && method === 'PATCH') {
+    const match = cleanEndpoint.match(/\/notifications\/([A-Za-z0-9_-]+)\/read$/);
+    if (match) {
+      const notifs = getStoredNotifications();
+      const n = notifs.find((x) => x.id === match[1]);
+      if (n) {
+        n.read = true;
+        saveStoredNotifications(notifs);
+      }
+    }
     return { success: true };
   }
 
@@ -444,7 +592,7 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
   if (cleanEndpoint === '/ai/copilot/chat') {
     const msg = (body.message || '').toLowerCase();
     const cases = getStoredCases();
-    const activeCase = (body.case_id ? cases.find((c) => c.id === body.case_id) : null) || cases[0];
+    const activeCase = (body.case_id && body.case_id !== 'ALL' ? cases.find((c) => c.id === body.case_id) : null) || cases[0];
     const patient = activeCase?.patient_name || 'Alex Johnson';
     const med = activeCase?.medication_name || 'Demo Medication 10mg';
     const dosage = activeCase?.dosage || '10mg PO Daily';
@@ -464,7 +612,19 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
       }
     ];
 
-    if (msg.includes('why') || msg.includes('stuck') || msg.includes('block') || msg.includes('reason') || msg.includes('delay')) {
+    if (msg.includes('attention') || msg.includes('urgent') || msg.includes('queue') || msg.includes('which case') || msg.includes('today')) {
+      const urgent = cases.filter((c) => c.sla_status === 'WARNING' || c.priority === 'HIGH');
+      ans = `### Active Refill Cases Requiring Priority Attention:\n\n` +
+        urgent.slice(0, 4).map((c) => `• **${c.id}** (${c.patient_name}) — *${c.medication_name}*\n  Blocker: **${c.blocker || 'Review pending'}** | SLA: **${c.sla_hours_remaining}h remaining** (${c.sla_status})`).join('\n\n') +
+        `\n\nClick any case in the Refill Cases queue to view clinical recommendations, order labs, or send care team inquiries.`;
+      sources = [
+        {
+          source: 'Operations SLA Standard §1.4',
+          title: 'Daily High-Priority Escalation Matrix',
+          category: 'Operations SOP'
+        }
+      ];
+    } else if (msg.includes('why') || msg.includes('stuck') || msg.includes('block') || msg.includes('reason') || msg.includes('delay')) {
       ans = `### Operational Root Cause for **${cid}**\n\n` +
         `• **Primary Blocker:** **${blocker}** (${category})\n` +
         `• **Patient:** ${patient} (${med} ${dosage})\n` +
@@ -542,6 +702,7 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
     } else {
       ans = `Hello! I am your **RxResolve Copilot**, grounded in organizational clinical SOPs and active refill queues.\n\n` +
         `You can ask me:\n` +
+        `• *"Which cases need attention today?"*\n` +
         `• *"Why is case ${cid} stuck?"*\n` +
         `• *"Who needs to act on ${patient}'s refill?"*\n` +
         `• *"What is our SOP on 0 refills remaining?"*\n` +

@@ -64,6 +64,13 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md' })
       dot: 'bg-orange-500 animate-ping shadow-[0_0_8px_rgba(249,115,22,0.8)]',
       label: 'Action Required'
     },
+    APPROVED: {
+      bg: 'bg-emerald-500/15 backdrop-blur-md',
+      text: 'text-emerald-900',
+      border: 'border-emerald-400/40',
+      dot: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]',
+      label: 'Renewal Approved'
+    },
     RESOLVED: {
       bg: 'bg-emerald-500/12 backdrop-blur-md',
       text: 'text-emerald-800',

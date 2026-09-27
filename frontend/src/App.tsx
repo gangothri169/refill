@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { api } from './api/client';
 import { Sidebar } from './components/Sidebar';
 import { Navbar } from './components/Navbar';
 import { DemoBanner } from './components/DemoBanner';
@@ -29,6 +30,20 @@ const AppLayout: React.FC = () => {
 
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [newCaseModalOpen, setNewCaseModalOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(2);
+
+  // Sync unread notifications count with storage
+  useEffect(() => {
+    async function checkUnread() {
+      try {
+        const notifs = await api.getNotifications();
+        if (Array.isArray(notifs)) {
+          setUnreadCount(notifs.filter((n: any) => !n.read).length);
+        }
+      } catch {}
+    }
+    checkUnread();
+  }, [location.pathname]);
 
   // Extract case ID if currently on a case detail page
   const caseMatch = location.pathname.match(/\/cases\/([^/]+)/);
@@ -56,7 +71,7 @@ const AppLayout: React.FC = () => {
             onOpenCopilot={() => setCopilotOpen(!copilotOpen)}
             copilotOpen={copilotOpen}
             onOpenNewCase={() => setNewCaseModalOpen(true)}
-            unreadNotificationsCount={2}
+            unreadNotificationsCount={unreadCount}
           />
 
           <main className="flex-1 overflow-y-auto">
