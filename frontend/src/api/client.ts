@@ -22,7 +22,24 @@ const STORAGE_KEY_NOTIFICATIONS = 'rxresolve_mock_notifications';
 function getStoredCases(): RefillCase[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_CASES);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed: RefillCase[] = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Ensure new seed cases are merged in if they don't exist yet
+        const existingIds = new Set(parsed.map((c) => c.id));
+        let changed = false;
+        for (const initial of INITIAL_CASES) {
+          if (!existingIds.has(initial.id)) {
+            parsed.push(initial);
+            changed = true;
+          }
+        }
+        if (changed) {
+          localStorage.setItem(STORAGE_KEY_CASES, JSON.stringify(parsed));
+        }
+        return parsed;
+      }
+    }
   } catch {}
   localStorage.setItem(STORAGE_KEY_CASES, JSON.stringify(INITIAL_CASES));
   return INITIAL_CASES;
@@ -223,8 +240,48 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
       return cases[0]; // fallback
     }
 
-    // List cases
+    // List cases with complete dynamic filtering
     let cases = getStoredCases();
+    try {
+      const urlObj = new URL('http://local' + (endpoint.startsWith('/') ? endpoint : '/' + endpoint));
+      const fSearch = (urlObj.searchParams.get('search') || '').trim().toLowerCase();
+      const fStatus = (urlObj.searchParams.get('status') || '').trim().toUpperCase();
+      const fBlocker = (urlObj.searchParams.get('blocker') || '').trim().toLowerCase();
+      const fPriority = (urlObj.searchParams.get('priority') || '').trim().toUpperCase();
+      const fRole = (urlObj.searchParams.get('owner_role') || '').trim().toUpperCase();
+
+      if (fStatus && fStatus !== 'ALL') {
+        cases = cases.filter((c) => (c.status || '').toUpperCase() === fStatus);
+      }
+      if (fPriority && fPriority !== 'ALL') {
+        cases = cases.filter((c) => (c.priority || '').toUpperCase() === fPriority);
+      }
+      if (fBlocker && fBlocker !== 'ALL') {
+        cases = cases.filter((c) =>
+          (c.blocker || '').toLowerCase().includes(fBlocker) ||
+          (c.blocker_category || '').toLowerCase().includes(fBlocker)
+        );
+      }
+      if (fRole && fRole !== 'ALL') {
+        cases = cases.filter((c) =>
+          (c.owner_role || '').toUpperCase() === fRole ||
+          (c.ai_analysis?.recommended_role || '').toUpperCase() === fRole
+        );
+      }
+      if (fSearch) {
+        cases = cases.filter((c) =>
+          (c.id || '').toLowerCase().includes(fSearch) ||
+          (c.patient_name || '').toLowerCase().includes(fSearch) ||
+          (c.medication_name || '').toLowerCase().includes(fSearch) ||
+          (c.pharmacy_name || '').toLowerCase().includes(fSearch) ||
+          (c.provider_name || '').toLowerCase().includes(fSearch) ||
+          (c.blocker || '').toLowerCase().includes(fSearch) ||
+          (c.owner_name || '').toLowerCase().includes(fSearch)
+        );
+      }
+    } catch (e) {
+      console.error('Filter error in mock cases', e);
+    }
     return cases;
   }
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { api } from '../api/client';
 import { RefillCase, CaseStatus } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
@@ -67,19 +67,10 @@ export const CasesPage: React.FC<{ onOpenNewCase: () => void }> = ({ onOpenNewCa
     );
   };
 
-  const displayedCases = isMyQueue ? cases.filter(filterMyQueue) : cases;
-
   const fetchCases = async () => {
     setLoading(true);
     try {
-      const params: Record<string, string> = {};
-      if (search) params.search = search;
-      if (statusFilter !== 'ALL') params.status = statusFilter;
-      if (blockerFilter !== 'ALL') params.blocker = blockerFilter;
-      if (priorityFilter !== 'ALL') params.priority = priorityFilter;
-      if (roleFilter !== 'ALL') params.owner_role = roleFilter;
-
-      const res = await api.getCases(params);
+      const res = await api.getCases();
       setCases(res);
     } catch (err) {
       console.error('Failed to fetch cases', err);
@@ -90,11 +81,52 @@ export const CasesPage: React.FC<{ onOpenNewCase: () => void }> = ({ onOpenNewCa
 
   useEffect(() => {
     fetchCases();
-  }, [statusFilter, blockerFilter, priorityFilter, roleFilter]);
+  }, []);
+
+  const displayedCases = useMemo(() => {
+    let result = isMyQueue ? cases.filter(filterMyQueue) : cases;
+
+    if (statusFilter !== 'ALL') {
+      result = result.filter((c) => (c.status || '').toUpperCase() === statusFilter.toUpperCase());
+    }
+
+    if (blockerFilter !== 'ALL') {
+      const blk = blockerFilter.toLowerCase();
+      result = result.filter((c) =>
+        (c.blocker || '').toLowerCase().includes(blk) ||
+        (c.blocker_category || '').toLowerCase().includes(blk)
+      );
+    }
+
+    if (priorityFilter !== 'ALL') {
+      result = result.filter((c) => (c.priority || '').toUpperCase() === priorityFilter.toUpperCase());
+    }
+
+    if (roleFilter !== 'ALL') {
+      result = result.filter((c) =>
+        (c.owner_role || '').toUpperCase() === roleFilter.toUpperCase() ||
+        (c.ai_analysis?.recommended_role || '').toUpperCase() === roleFilter.toUpperCase()
+      );
+    }
+
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      result = result.filter((c) =>
+        (c.id || '').toLowerCase().includes(q) ||
+        (c.patient_name || '').toLowerCase().includes(q) ||
+        (c.medication_name || '').toLowerCase().includes(q) ||
+        (c.pharmacy_name || '').toLowerCase().includes(q) ||
+        (c.provider_name || '').toLowerCase().includes(q) ||
+        (c.blocker || '').toLowerCase().includes(q) ||
+        (c.owner_name || '').toLowerCase().includes(q)
+      );
+    }
+
+    return result;
+  }, [cases, isMyQueue, statusFilter, blockerFilter, priorityFilter, roleFilter, search, user?.role]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchCases();
   };
 
   // Kanban column grouping
@@ -266,8 +298,18 @@ export const CasesPage: React.FC<{ onOpenNewCase: () => void }> = ({ onOpenNewCa
               placeholder="Search by Case ID, patient name, medication, pharmacy, or provider..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 text-xs bg-white/70 border border-slate-200/80 rounded-full focus:outline-none focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500/50 transition shadow-xs placeholder:text-slate-400"
+              className="w-full pl-10 pr-9 py-2.5 text-xs bg-white/70 border border-slate-200/80 rounded-full focus:outline-none focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500/50 transition shadow-xs placeholder:text-slate-400 text-slate-800"
             />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 w-5 h-5 flex items-center justify-center rounded-full hover:bg-slate-200/60 text-xs font-bold transition"
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
           </div>
           <button
             type="submit"
@@ -278,16 +320,25 @@ export const CasesPage: React.FC<{ onOpenNewCase: () => void }> = ({ onOpenNewCa
         </form>
 
         <div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-slate-200/60 text-xs">
-          <div className="flex items-center gap-1 text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-            <Filter className="w-3.5 h-3.5" />
+          <div className="flex items-center gap-1.5 text-slate-500 font-semibold uppercase tracking-wider text-[10px]">
+            <Filter className="w-3.5 h-3.5 text-blue-600" />
             <span>Filters:</span>
+            {(statusFilter !== 'ALL' || blockerFilter !== 'ALL' || priorityFilter !== 'ALL' || roleFilter !== 'ALL' || search) && (
+              <span className="bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.2 rounded-full">
+                {(statusFilter !== 'ALL' ? 1 : 0) + (blockerFilter !== 'ALL' ? 1 : 0) + (priorityFilter !== 'ALL' ? 1 : 0) + (roleFilter !== 'ALL' ? 1 : 0) + (search ? 1 : 0)}
+              </span>
+            )}
           </div>
 
           {/* Status Filter */}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-white/70 border border-slate-200/80 rounded-full px-3 py-1.5 text-xs font-medium focus:ring-4 focus:ring-blue-500/15 focus:outline-none backdrop-blur-md shadow-xs text-slate-700"
+            className={`border rounded-full px-3 py-1.5 text-xs font-medium focus:ring-4 focus:ring-blue-500/15 focus:outline-none backdrop-blur-md shadow-xs transition ${
+              statusFilter !== 'ALL'
+                ? 'bg-blue-50 text-blue-700 border-blue-300 font-semibold ring-1 ring-blue-400/30'
+                : 'bg-white/70 border-slate-200/80 text-slate-700'
+            }`}
           >
             <option value="ALL">All Statuses</option>
             <option value="NEW">New</option>
@@ -307,7 +358,11 @@ export const CasesPage: React.FC<{ onOpenNewCase: () => void }> = ({ onOpenNewCa
           <select
             value={blockerFilter}
             onChange={(e) => setBlockerFilter(e.target.value)}
-            className="bg-white/70 border border-slate-200/80 rounded-full px-3 py-1.5 text-xs font-medium focus:ring-4 focus:ring-blue-500/15 focus:outline-none backdrop-blur-md shadow-xs text-slate-700"
+            className={`border rounded-full px-3 py-1.5 text-xs font-medium focus:ring-4 focus:ring-blue-500/15 focus:outline-none backdrop-blur-md shadow-xs transition ${
+              blockerFilter !== 'ALL'
+                ? 'bg-blue-50 text-blue-700 border-blue-300 font-semibold ring-1 ring-blue-400/30'
+                : 'bg-white/70 border-slate-200/80 text-slate-700'
+            }`}
           >
             <option value="ALL">All Blockers</option>
             <option value="No refills remaining">No refills remaining</option>
@@ -322,7 +377,11 @@ export const CasesPage: React.FC<{ onOpenNewCase: () => void }> = ({ onOpenNewCa
           <select
             value={priorityFilter}
             onChange={(e) => setPriorityFilter(e.target.value)}
-            className="bg-white/70 border border-slate-200/80 rounded-full px-3 py-1.5 text-xs font-medium focus:ring-4 focus:ring-blue-500/15 focus:outline-none backdrop-blur-md shadow-xs text-slate-700"
+            className={`border rounded-full px-3 py-1.5 text-xs font-medium focus:ring-4 focus:ring-blue-500/15 focus:outline-none backdrop-blur-md shadow-xs transition ${
+              priorityFilter !== 'ALL'
+                ? 'bg-blue-50 text-blue-700 border-blue-300 font-semibold ring-1 ring-blue-400/30'
+                : 'bg-white/70 border-slate-200/80 text-slate-700'
+            }`}
           >
             <option value="ALL">All Priorities</option>
             <option value="CRITICAL">Critical</option>
@@ -335,7 +394,11 @@ export const CasesPage: React.FC<{ onOpenNewCase: () => void }> = ({ onOpenNewCa
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="bg-white/70 border border-slate-200/80 rounded-full px-3 py-1.5 text-xs font-medium focus:ring-4 focus:ring-blue-500/15 focus:outline-none backdrop-blur-md shadow-xs text-slate-700"
+            className={`border rounded-full px-3 py-1.5 text-xs font-medium focus:ring-4 focus:ring-blue-500/15 focus:outline-none backdrop-blur-md shadow-xs transition ${
+              roleFilter !== 'ALL'
+                ? 'bg-blue-50 text-blue-700 border-blue-300 font-semibold ring-1 ring-blue-400/30'
+                : 'bg-white/70 border-slate-200/80 text-slate-700'
+            }`}
           >
             <option value="ALL">All Roles</option>
             <option value="PROVIDER">Provider</option>
@@ -343,6 +406,10 @@ export const CasesPage: React.FC<{ onOpenNewCase: () => void }> = ({ onOpenNewCa
             <option value="PHARMACY_STAFF">Pharmacy Staff</option>
             <option value="ADMIN">Operations Admin</option>
           </select>
+
+          <span className="text-[11px] text-slate-400 font-medium ml-1">
+            Showing <strong className="text-slate-700 font-bold">{displayedCases.length}</strong> of {cases.length} cases
+          </span>
 
           {(statusFilter !== 'ALL' || blockerFilter !== 'ALL' || priorityFilter !== 'ALL' || roleFilter !== 'ALL' || search) && (
             <button
@@ -353,9 +420,9 @@ export const CasesPage: React.FC<{ onOpenNewCase: () => void }> = ({ onOpenNewCa
                 setRoleFilter('ALL');
                 setSearch('');
               }}
-              className="text-[11px] text-rose-600 hover:text-rose-700 font-semibold ml-auto bg-rose-500/10 px-3 py-1 rounded-full border border-rose-400/20 transition active:scale-95"
+              className="text-[11px] text-rose-600 hover:text-rose-700 font-semibold ml-auto bg-rose-500/10 px-3 py-1 rounded-full border border-rose-400/20 transition active:scale-95 flex items-center gap-1"
             >
-              Reset Filters
+              <span>✕ Reset Filters</span>
             </button>
           )}
         </div>
@@ -385,6 +452,18 @@ export const CasesPage: React.FC<{ onOpenNewCase: () => void }> = ({ onOpenNewCa
                       <Layers className="w-8 h-8 mx-auto mb-2 text-slate-300" />
                       <p className="font-semibold text-slate-600">No refill cases match the selected filters.</p>
                       <p className="text-xs text-slate-400 mt-0.5">Try clearing filters or search criteria.</p>
+                      <button
+                        onClick={() => {
+                          setStatusFilter('ALL');
+                          setBlockerFilter('ALL');
+                          setPriorityFilter('ALL');
+                          setRoleFilter('ALL');
+                          setSearch('');
+                        }}
+                        className="mt-3.5 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition shadow-xs active:scale-95"
+                      >
+                        Reset All Filters
+                      </button>
                     </td>
                   </tr>
                 ) : (
