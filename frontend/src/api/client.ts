@@ -489,9 +489,207 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
     return { success: true };
   }
 
-  // Analytics
-  if (cleanEndpoint === '/analytics') {
-    return DEMO_ANALYTICS;
+  // Analytics - dynamic calculation based on timeframe parameter (7d, 30d, 90d, ytd)
+  if (cleanEndpoint.startsWith('/analytics')) {
+    let timeframe = '30d';
+    try {
+      const urlObj = new URL('http://local' + (endpoint.startsWith('/') ? endpoint : '/' + endpoint));
+      timeframe = urlObj.searchParams.get('timeframe') || '30d';
+    } catch {}
+
+    if (timeframe === '7d') {
+      return {
+        kpis: {
+          total_refills: 38,
+          active_refills: 16,
+          avg_resolution_hours: 3.6,
+          sla_compliance_rate: 97.4,
+          ai_acceptance_rate: 94.7,
+          awaiting_provider: 3,
+          missing_information: 1,
+          at_risk: 1,
+          resolved_today: 5
+        },
+        bottlenecks: [
+          { name: "Provider-related", count: 3, percentage: 50.0 },
+          { name: "Insurance/administrative", count: 1, percentage: 16.7 },
+          { name: "Pharmacy-related", count: 1, percentage: 16.7 },
+          { name: "Information-related", count: 1, percentage: 16.7 },
+          { name: "System/integration", count: 0, percentage: 0.0 }
+        ],
+        volume_trend: [
+          { day: "Mon", submitted: 6, resolved: 6 },
+          { day: "Tue", submitted: 7, resolved: 6 },
+          { day: "Wed", submitted: 8, resolved: 8 },
+          { day: "Thu", submitted: 6, resolved: 6 },
+          { day: "Fri", submitted: 5, resolved: 5 },
+          { day: "Sat", submitted: 4, resolved: 4 },
+          { day: "Sun", submitted: 2, resolved: 2 }
+        ],
+        volume_trend_title: "Last 7 Days (Daily Volume Trend)",
+        resolution_buckets: [
+          { bucket: "< 2 hrs", count: 14, label: "Instant / Fast Path" },
+          { bucket: "2-6 hrs", count: 16, label: "Provider Same-Day" },
+          { bucket: "6-12 hrs", count: 5, label: "Standard Review" },
+          { bucket: "12-24 hrs", count: 2, label: "Information Retrieval" },
+          { bucket: "> 24 hrs", count: 1, label: "Complex / Prior Auth" }
+        ],
+        benchmarks: {
+          cohort_label: "7-Day Cohort",
+          avg_resolution: "3.6h",
+          zero_call: "82%",
+          sla_compliance: "97.4%",
+          pa_approval: "90.2%",
+          time_saved: "2.8h/day",
+          patient_notified: "100%"
+        },
+        organizations: DEMO_ANALYTICS.organizations.map((org) => ({
+          ...org,
+          resolved_this_month: Math.round(org.resolved_this_month * 0.25),
+          avg_resolution_hours: Math.max(3.2, Number((org.avg_resolution_hours * 0.85).toFixed(1))),
+          sla_compliance_pct: Math.min(99.1, Number((org.sla_compliance_pct + 1.8).toFixed(1)))
+        })),
+        commercial_roi: {
+          disclaimer: "DEMO / SIMULATED BENCHMARKS (7-DAY RUN-RATE)",
+          label: "Based on 7-day cohort run-rate",
+          annual_hours_saved: 2450,
+          cost_avoidance_annual: 85750,
+          therapy_abandonment_reduction_pct: 35.8
+        }
+      };
+    }
+
+    if (timeframe === '90d') {
+      return {
+        kpis: {
+          total_refills: 426,
+          active_refills: 16,
+          avg_resolution_hours: 4.6,
+          sla_compliance_rate: 93.8,
+          ai_acceptance_rate: 89.4,
+          awaiting_provider: 6,
+          missing_information: 3,
+          at_risk: 3,
+          resolved_today: 4
+        },
+        bottlenecks: [
+          { name: "Provider-related", count: 24, percentage: 51.1 },
+          { name: "Insurance/administrative", count: 9, percentage: 19.1 },
+          { name: "Pharmacy-related", count: 6, percentage: 12.8 },
+          { name: "Information-related", count: 5, percentage: 10.6 },
+          { name: "System/integration", count: 3, percentage: 6.4 }
+        ],
+        volume_trend: [
+          { day: "Month 1", submitted: 135, resolved: 128 },
+          { day: "Month 2", submitted: 145, resolved: 138 },
+          { day: "Month 3", submitted: 146, resolved: 141 }
+        ],
+        volume_trend_title: "Quarter to Date (Monthly Volume Trend)",
+        resolution_buckets: [
+          { bucket: "< 2 hrs", count: 82, label: "Instant / Fast Path" },
+          { bucket: "2-6 hrs", count: 134, label: "Provider Same-Day" },
+          { bucket: "6-12 hrs", count: 96, label: "Standard Review" },
+          { bucket: "12-24 hrs", count: 58, label: "Information Retrieval" },
+          { bucket: "> 24 hrs", count: 21, label: "Complex / Prior Auth" }
+        ],
+        benchmarks: {
+          cohort_label: "Quarter-to-Date (90-Day) Cohort",
+          avg_resolution: "4.6h",
+          zero_call: "76%",
+          sla_compliance: "93.8%",
+          pa_approval: "85.4%",
+          time_saved: "2.3h/day",
+          patient_notified: "99.8%"
+        },
+        organizations: DEMO_ANALYTICS.organizations.map((org) => ({
+          ...org,
+          resolved_this_month: Math.round(org.resolved_this_month * 2.8),
+          avg_resolution_hours: Number((org.avg_resolution_hours * 1.05).toFixed(1)),
+          sla_compliance_pct: Number((org.sla_compliance_pct - 0.6).toFixed(1))
+        })),
+        commercial_roi: {
+          disclaimer: "DEMO / SIMULATED BENCHMARKS (QUARTERLY)",
+          label: "Based on synthetic 90-day cohort benchmarking",
+          annual_hours_saved: 2450,
+          cost_avoidance_annual: 85750,
+          therapy_abandonment_reduction_pct: 33.1
+        }
+      };
+    }
+
+    if (timeframe === 'ytd') {
+      return {
+        kpis: {
+          total_refills: 1684,
+          active_refills: 16,
+          avg_resolution_hours: 4.8,
+          sla_compliance_rate: 92.5,
+          ai_acceptance_rate: 88.2,
+          awaiting_provider: 8,
+          missing_information: 4,
+          at_risk: 4,
+          resolved_today: 4
+        },
+        bottlenecks: [
+          { name: "Provider-related", count: 92, percentage: 48.9 },
+          { name: "Insurance/administrative", count: 38, percentage: 20.2 },
+          { name: "Pharmacy-related", count: 26, percentage: 13.8 },
+          { name: "Information-related", count: 20, percentage: 10.6 },
+          { name: "System/integration", count: 12, percentage: 6.4 }
+        ],
+        volume_trend: [
+          { day: "Q1", submitted: 395, resolved: 372 },
+          { day: "Q2", submitted: 420, resolved: 398 },
+          { day: "Q3", submitted: 445, resolved: 426 },
+          { day: "Q4 (Est)", submitted: 424, resolved: 412 }
+        ],
+        volume_trend_title: "Year to Date (Quarterly Volume Trend)",
+        resolution_buckets: [
+          { bucket: "< 2 hrs", count: 320, label: "Instant / Fast Path" },
+          { bucket: "2-6 hrs", count: 530, label: "Provider Same-Day" },
+          { bucket: "6-12 hrs", count: 390, label: "Standard Review" },
+          { bucket: "12-24 hrs", count: 240, label: "Information Retrieval" },
+          { bucket: "> 24 hrs", count: 88, label: "Complex / Prior Auth" }
+        ],
+        benchmarks: {
+          cohort_label: "Year-to-Date Cohort",
+          avg_resolution: "4.8h",
+          zero_call: "73%",
+          sla_compliance: "92.5%",
+          pa_approval: "84.0%",
+          time_saved: "2.1h/day",
+          patient_notified: "99.5%"
+        },
+        organizations: DEMO_ANALYTICS.organizations.map((org) => ({
+          ...org,
+          resolved_this_month: Math.round(org.resolved_this_month * 11.2),
+          avg_resolution_hours: Number((org.avg_resolution_hours * 1.1).toFixed(1)),
+          sla_compliance_pct: Number((org.sla_compliance_pct - 1.2).toFixed(1))
+        })),
+        commercial_roi: {
+          disclaimer: "DEMO / SIMULATED BENCHMARKS (ANNUALIZED YTD)",
+          label: "Based on annualized year-to-date cohort metrics",
+          annual_hours_saved: 2450,
+          cost_avoidance_annual: 85750,
+          therapy_abandonment_reduction_pct: 32.5
+        }
+      };
+    }
+
+    // Default '30d'
+    return {
+      ...DEMO_ANALYTICS,
+      volume_trend_title: "Last 30 Days (Daily Volume Trend)",
+      benchmarks: {
+        cohort_label: "30-Day Cohort",
+        avg_resolution: "4.2h",
+        zero_call: "78%",
+        sla_compliance: "94.7%",
+        pa_approval: "87.3%",
+        time_saved: "2.4h/day",
+        patient_notified: "100%"
+      }
+    };
   }
 
   // Audit Logs - with complete dynamic parameter filtering
@@ -905,7 +1103,7 @@ export const api = {
   sendMessage: (caseId: string, data: any) => apiRequest(`/cases/${caseId}/communications`, { method: 'POST', body: JSON.stringify(data) }),
 
   // Analytics
-  getAnalytics: () => apiRequest('/analytics'),
+  getAnalytics: (timeframe?: string) => apiRequest(`/analytics${timeframe ? `?timeframe=${encodeURIComponent(timeframe)}` : ''}`),
 
   // Audit
   getAuditLogs: (params?: Record<string, string>) => {
