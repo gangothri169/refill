@@ -7,7 +7,6 @@ import { Navbar } from './components/Navbar';
 import { DemoBanner } from './components/DemoBanner';
 import { CopilotSidebar } from './components/CopilotSidebar';
 import { NewRefillModal } from './components/NewRefillModal';
-import { DemoGuidePill } from './components/DemoGuidePill';
 
 // Pages
 import { LoginPage } from './pages/LoginPage';
@@ -111,9 +110,6 @@ const AppLayout: React.FC = () => {
         isOpen={newCaseModalOpen}
         onClose={() => setNewCaseModalOpen(false)}
       />
-
-      {/* Floating 7-Step Guided Demo Walkthrough */}
-      <DemoGuidePill />
     </div>
   );
 };
