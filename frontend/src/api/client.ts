@@ -307,7 +307,7 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
 
   // Provider Decision
   if (cleanEndpoint.includes('/provider-decision') && method === 'POST') {
-    const idMatch = cleanEndpoint.match(/^\/cases\/([A-Za-z0-9_-]+)\/provider-decision$/);
+    const idMatch = cleanEndpoint.match(/^\/cases\/([A-Za-z0-9_-]+)\/provider-decision/);
     const caseId = idMatch ? idMatch[1] : '';
     const cases = getStoredCases();
     const idx = cases.findIndex((c) => c.id === caseId);
@@ -359,7 +359,7 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
 
   // Case Assignment
   if (cleanEndpoint.includes('/assign') && method === 'POST') {
-    const idMatch = cleanEndpoint.match(/^\/cases\/([A-Za-z0-9_-]+)\/assign$/);
+    const idMatch = cleanEndpoint.match(/^\/cases\/([A-Za-z0-9_-]+)\/assign/);
     const caseId = idMatch ? idMatch[1] : '';
     const cases = getStoredCases();
     const idx = cases.findIndex((c) => c.id === caseId);

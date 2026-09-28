@@ -80,7 +80,15 @@ export const CaseDetailPage: React.FC = () => {
 
   useEffect(() => {
     fetchFullCase();
-  }, [id]);
+
+    const handleCaseUpdated = (e: any) => {
+      if (!e.detail || e.detail.caseId === id) {
+        fetchFullCase();
+      }
+    };
+    window.addEventListener('rxresolve:case-updated', handleCaseUpdated);
+    return () => window.removeEventListener('rxresolve:case-updated', handleCaseUpdated);
+  }, [id, user?.role]);
 
   if (loading) {
     return (
