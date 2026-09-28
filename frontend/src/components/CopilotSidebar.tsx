@@ -182,7 +182,7 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-y-0 right-0 w-96 sm:w-[440px] bg-white/80 backdrop-blur-2xl border-l border-white/80 shadow-2xl flex flex-col z-50 animate-in slide-in-from-right duration-200">
+    <div className="fixed inset-y-0 right-0 w-96 sm:w-[440px] bg-white/80 dark:bg-slate-900/95 backdrop-blur-2xl border-l border-white/80 dark:border-slate-800 shadow-2xl flex flex-col z-50 animate-in slide-in-from-right duration-200">
       {/* Top Header */}
       <div className="p-4 border-b border-slate-200/60 bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-transparent backdrop-blur-xl">
         <div className="flex items-center justify-between mb-3">

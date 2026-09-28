@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import {
   Search,
   Bell,
@@ -7,7 +8,9 @@ import {
   PlusCircle,
   LogOut,
   User as UserIcon,
-  ShieldAlert
+  ShieldAlert,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -25,6 +28,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   unreadNotificationsCount = 2
 }) => {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   return (
@@ -83,6 +87,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="absolute top-1 right-1 w-4 h-4 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white shadow-xs">
               {unreadNotificationsCount}
             </span>
+          )}
+        </button>
+
+        {/* Dark / Light Theme Toggle */}
+        <button
+          onClick={toggleTheme}
+          className="p-2 text-slate-500 hover:text-slate-800 dark:text-slate-300 dark:hover:text-amber-300 hover:bg-white/80 dark:hover:bg-slate-800/80 rounded-full border border-transparent hover:border-slate-200/60 dark:hover:border-slate-700/60 transition-all backdrop-blur-md"
+          title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          aria-label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        >
+          {theme === 'dark' ? (
+            <Sun className="w-4 h-4 text-amber-400 transition-transform duration-300 hover:rotate-45" />
+          ) : (
+            <Moon className="w-4 h-4 text-slate-600 transition-transform duration-300 hover:-rotate-12" />
           )}
         </button>
 

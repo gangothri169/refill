@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import {
   Settings,
   ShieldCheck,
@@ -10,11 +11,15 @@ import {
   Check,
   Sparkles,
   Layers,
-  KeyRound
+  KeyRound,
+  Sun,
+  Moon,
+  Palette
 } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
   const { user } = useAuth();
+  const { theme, setTheme } = useTheme();
 
   return (
     <div className="p-8 space-y-7 max-w-5xl mx-auto">
@@ -29,8 +34,73 @@ export const SettingsPage: React.FC = () => {
           </h1>
         </div>
         <p className="text-sm text-slate-500 mt-1 pl-10.5">
-          Workflow rules, AI guardrail parameters, organizational profile, and subscription tier
+          Workflow rules, AI guardrail parameters, organizational profile, theme settings, and subscription tier
         </p>
+      </div>
+
+      {/* Appearance & Interface Theme */}
+      <div className="glass-card rounded-3xl p-6 space-y-5 shadow-glass">
+        <div className="flex items-center gap-3 pb-3 border-b border-slate-100/80">
+          <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
+            <Palette className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-slate-900 tracking-tight">Appearance & Interface Theme</h2>
+            <p className="text-xs text-slate-500">Select your preferred viewing contrast mode</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <button
+            type="button"
+            onClick={() => setTheme('light')}
+            className={`flex items-center justify-between p-4 rounded-2xl border text-left transition-all ${
+              theme === 'light'
+                ? 'bg-blue-500/10 border-blue-500/40 shadow-xs ring-2 ring-blue-500/20'
+                : 'glass-card-subtle border-slate-200/60 hover:border-slate-300'
+            }`}
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center border border-amber-200/50">
+                <Sun className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-slate-900">Light Mode</div>
+                <div className="text-[11px] text-slate-500">Frosted clinical daylight workspace</div>
+              </div>
+            </div>
+            {theme === 'light' && (
+              <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                <Check className="w-3 h-3 stroke-[3]" />
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setTheme('dark')}
+            className={`flex items-center justify-between p-4 rounded-2xl border text-left transition-all ${
+              theme === 'dark'
+                ? 'bg-blue-500/20 border-blue-500/50 shadow-xs ring-2 ring-blue-500/30'
+                : 'glass-card-subtle border-slate-200/60 hover:border-slate-300'
+            }`}
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
+                <Moon className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-slate-900">Dark Mode</div>
+                <div className="text-[11px] text-slate-500">Deep midnight contrast for reduced eye strain</div>
+              </div>
+            </div>
+            {theme === 'dark' && (
+              <span className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center shadow-xs">
+                <Check className="w-3 h-3 stroke-[3]" />
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Organization Profile */}
