@@ -206,7 +206,7 @@ export const PatientNotificationPanel: React.FC<PatientNotificationPanelProps> =
   const firstName = patientName.split(' ')[0];
 
   return (
-    <div className="glass-card rounded-3xl p-5 space-y-4 border border-emerald-300/30 bg-gradient-to-br from-white/80 via-emerald-50/20 to-teal-50/10">
+    <div id="patient-notification-log" className="glass-card rounded-3xl p-5 space-y-4 border border-emerald-300/30 bg-gradient-to-br from-white/80 via-emerald-50/20 to-teal-50/10 scroll-mt-20">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">

@@ -134,9 +134,11 @@ export const AuditLogPage: React.FC = () => {
             className="bg-white/70 border border-slate-200/80 rounded-full px-3 py-1.5 text-xs font-medium focus:ring-4 focus:ring-blue-500/15 focus:outline-none backdrop-blur-md shadow-xs text-slate-700"
           >
             <option value="ALL">All Event Types</option>
+            <option value="COMMUNICATION">Care Team Communication</option>
             <option value="WORKFLOW_TRANSITION">Workflow Transition</option>
             <option value="AI_INFERENCE">AI Inference / Classification</option>
             <option value="CASE_CREATION">Case Creation</option>
+            <option value="INTEGRATION_PROBE">Gateway Probe</option>
             <option value="INTEGRATION_RECOVERY">Integration Recovery</option>
           </select>
 

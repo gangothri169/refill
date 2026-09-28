@@ -5,7 +5,8 @@ import {
   DEMO_AUDIT_LOGS,
   DEMO_INTEGRATIONS,
   DEMO_NOTIFICATIONS,
-  DEMO_KNOWLEDGE_DOCUMENTS
+  DEMO_KNOWLEDGE_DOCUMENTS,
+  DEMO_CASE_COMMUNICATIONS
 } from './mockData';
 import { RefillCase, AuditLogItem, IntegrationServiceItem } from '../types';
 
@@ -67,25 +68,59 @@ function getStoredCommunications(caseId: string): any[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_COMMUNICATIONS);
     const all = raw ? JSON.parse(raw) : {};
-    if (all[caseId] && Array.isArray(all[caseId]) && all[caseId].length > 0) {
-      return all[caseId];
+    if (all[caseId] && Array.isArray(all[caseId])) {
+      // If user had the old stale 1-line stub, upgrade to the rich case-specific seed
+      if (all[caseId].length === 1 && all[caseId][0].content?.includes('0 refills remain on original Rx. Patient has 2 doses left at home.')) {
+        if (DEMO_CASE_COMMUNICATIONS[caseId]) {
+          saveStoredCommunications(caseId, DEMO_CASE_COMMUNICATIONS[caseId]);
+          return DEMO_CASE_COMMUNICATIONS[caseId];
+        }
+      } else if (all[caseId].length > 0) {
+        return all[caseId];
+      }
     }
   } catch {}
 
-  const initial = [
+  if (DEMO_CASE_COMMUNICATIONS[caseId]) {
+    saveStoredCommunications(caseId, DEMO_CASE_COMMUNICATIONS[caseId]);
+    return DEMO_CASE_COMMUNICATIONS[caseId];
+  }
+
+  // Fallback case-specific thread
+  const cases = getStoredCases();
+  const activeCase = cases.find((c) => c.id === caseId);
+  const med = activeCase?.medication_name || 'Prescription';
+  const patient = activeCase?.patient_name || 'Patient';
+  const blocker = activeCase?.blocker || 'Clinical review needed';
+  const pharmacy = activeCase?.pharmacy_name || 'Dispensing Pharmacy';
+
+  const generatedSeed = [
     {
-      id: `comm-init-${caseId}`,
+      id: `comm-${caseId}-1`,
       case_id: caseId,
       sender_id: 'usr-pharm-01',
       sender_name: 'Elena Rostova, CPhT',
       sender_role: 'PHARMACY_STAFF',
-      content: '0 refills remain on original Rx. Patient has 2 doses left at home.',
-      timestamp: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
+      recipient_role: 'PRACTICE_STAFF',
+      content: `Refill intake submitted from ${pharmacy} for ${patient} (${med}). Status blocker: "${blocker}". Patient inquiring regarding expected dispensing timeline.`,
+      timestamp: new Date(Date.now() - 3 * 3600000).toISOString(),
+      is_ai_drafted: false
+    },
+    {
+      id: `comm-${caseId}-2`,
+      case_id: caseId,
+      sender_id: 'usr-pract-01',
+      sender_name: 'Maya Lin, BSN',
+      sender_role: 'PRACTICE_STAFF',
+      recipient_role: 'PROVIDER',
+      content: `Patient chart reviewed for ${patient}. Clinical parameters verified against practice SOP. Routed for attending physician decision.`,
+      timestamp: new Date(Date.now() - 1.2 * 3600000).toISOString(),
       is_ai_drafted: false
     }
   ];
-  saveStoredCommunications(caseId, initial);
-  return initial;
+
+  saveStoredCommunications(caseId, generatedSeed);
+  return generatedSeed;
 }
 
 function saveStoredCommunications(caseId: string, messages: any[]) {
@@ -145,32 +180,47 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
     return DEMO_USERS[1];
   }
 
-  // Cases List
+  // Cases List & Sub-resources
   if (cleanEndpoint.startsWith('/cases') && method === 'GET') {
-    const idMatch = cleanEndpoint.match(/^\/cases\/([A-Za-z0-9_-]+)$/);
+    const commsMatch = cleanEndpoint.match(/^\/cases\/([A-Za-z0-9_-]+)\/communications/);
+    if (commsMatch) {
+      return getStoredCommunications(commsMatch[1]);
+    }
+
+    const timelineMatch = cleanEndpoint.match(/^\/cases\/([A-Za-z0-9_-]+)\/timeline/);
+    if (timelineMatch) {
+      const caseId = timelineMatch[1];
+      const audits = getStoredAudits().filter((a) => a.case_id === caseId);
+      if (audits.length > 0) {
+        return audits.map((a, i) => ({
+          id: a.id || `evt-${i}`,
+          action: a.action,
+          note: a.details?.notes || a.details?.preview || a.details?.decision || a.details?.note || a.action.replace(/_/g, ' '),
+          actor_name: a.actor_name,
+          actor_role: a.actor_role,
+          timestamp: a.timestamp,
+          to_status: a.new_state
+        }));
+      }
+      return [
+        {
+          id: 'evt-01',
+          action: 'SUBMIT_REFILL_REQUEST',
+          note: 'Submitted via Surescripts portal by Elena Rostova, CPhT.',
+          actor_name: 'Elena Rostova, CPhT',
+          actor_role: 'PHARMACY_STAFF',
+          timestamp: new Date(Date.now() - 3600000 * 4).toISOString()
+        }
+      ];
+    }
+
+    const idMatch = cleanEndpoint.match(/^\/cases\/([A-Za-z0-9_-]+)(\?.*)?$/);
     if (idMatch) {
       const caseId = idMatch[1];
       const cases = getStoredCases();
       const found = cases.find((c) => c.id === caseId);
       if (found) return found;
       return cases[0]; // fallback
-    }
-
-    const timelineMatch = cleanEndpoint.match(/^\/cases\/([A-Za-z0-9_-]+)\/timeline$/);
-    if (timelineMatch) {
-      return [
-        {
-          id: 'evt-01',
-          action: 'SUBMIT_REFILL_REQUEST',
-          note: 'Submitted via Surescripts portal.',
-          timestamp: new Date().toISOString()
-        }
-      ];
-    }
-
-    const commsMatch = cleanEndpoint.match(/^\/cases\/([A-Za-z0-9_-]+)\/communications$/);
-    if (commsMatch) {
-      return getStoredCommunications(commsMatch[1]);
     }
 
     // List cases
@@ -346,7 +396,7 @@ function handleMockRequest(endpoint: string, options: RequestInit = {}): any {
 
   // Communications Post - Persists to local storage & logs audit
   if (cleanEndpoint.includes('/communications') && method === 'POST') {
-    const commsMatch = cleanEndpoint.match(/^\/cases\/([A-Za-z0-9_-]+)\/communications$/);
+    const commsMatch = cleanEndpoint.match(/^\/cases\/([A-Za-z0-9_-]+)\/communications/);
     const caseId = commsMatch ? commsMatch[1] : (body.case_id || 'RX-10482');
     const existing = getStoredCommunications(caseId);
 
@@ -807,9 +857,14 @@ export async function apiRequest<T = any>(
     });
 
     if (res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        console.warn(`[API] Endpoint ${url} returned non-JSON response (${contentType}). Falling back to demo mock.`);
+        return handleMockRequest(endpoint, options);
+      }
       return await res.json();
     }
-    // If response was not ok (e.g. 404 from Vercel without backend), fallback
+    // If response was not ok (e.g. 404/405 from Vercel without backend), fallback
     console.warn(`[API] Endpoint ${url} returned ${res.status}. Falling back to demo state.`);
     return handleMockRequest(endpoint, options);
   } catch (err) {

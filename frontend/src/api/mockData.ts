@@ -648,3 +648,186 @@ export const DEMO_KNOWLEDGE_DOCUMENTS: KnowledgeDoc[] = [
     keywords: ["Communication", "Audit", "Integration", "Timeout", "EHR", "Failure", "Retry"]
   }
 ];
+
+export const DEMO_CASE_COMMUNICATIONS: Record<string, any[]> = {
+  'RX-10482': [
+    {
+      id: 'comm-10482-1',
+      case_id: 'RX-10482',
+      sender_id: 'usr-pharm-01',
+      sender_name: 'Elena Rostova, CPhT',
+      sender_role: 'PHARMACY_STAFF',
+      recipient_role: 'PRACTICE_STAFF',
+      content: 'Refill intake received from Downtown Pharmacy for Alex Johnson (Demo Medication 10mg). 0 refills remain on original Rx. Patient has 2 doses left at home.',
+      timestamp: new Date(Date.now() - 4 * 3600000).toISOString(),
+      is_ai_drafted: false
+    },
+    {
+      id: 'comm-10482-2',
+      case_id: 'RX-10482',
+      sender_id: 'usr-pract-01',
+      sender_name: 'Maya Lin, BSN',
+      sender_role: 'PRACTICE_STAFF',
+      recipient_role: 'PROVIDER',
+      content: 'Chart review completed. Alex has maintained 98% therapy adherence over the past 12 months with no adverse reactions noted. Routing to Dr. Sarah Wilson for renewal authorization.',
+      timestamp: new Date(Date.now() - 2.5 * 3600000).toISOString(),
+      is_ai_drafted: false
+    },
+    {
+      id: 'comm-10482-3',
+      case_id: 'RX-10482',
+      sender_id: 'usr-prov-01',
+      sender_name: 'Dr. Sarah Wilson, MD',
+      sender_role: 'PROVIDER',
+      recipient_role: 'PRACTICE_STAFF',
+      content: 'Encounter history verified. Annual lab panel completed 4 months ago was within normal limits. Case is approved for 3 refills (90-day supply).',
+      timestamp: new Date(Date.now() - 45 * 60000).toISOString(),
+      is_ai_drafted: true
+    }
+  ],
+  'RX-10483': [
+    {
+      id: 'comm-10483-1',
+      case_id: 'RX-10483',
+      sender_id: 'usr-pharm-01',
+      sender_name: 'Elena Rostova, CPhT',
+      sender_role: 'PHARMACY_STAFF',
+      recipient_role: 'PRACTICE_STAFF',
+      content: 'Refill request submitted for Marcus Thorne (Atorvastatin 40mg). Original prescription has exhausted all refills. Patient reports 3 days supply remaining.',
+      timestamp: new Date(Date.now() - 5 * 3600000).toISOString(),
+      is_ai_drafted: false
+    },
+    {
+      id: 'comm-10483-2',
+      case_id: 'RX-10483',
+      sender_id: 'usr-pract-01',
+      sender_name: 'Maya Lin, BSN',
+      sender_role: 'PRACTICE_STAFF',
+      recipient_role: 'PROVIDER',
+      content: 'Lipid panel from last visit shows LDL reduction on target. Patient requested 90-day maintenance supply. Routed to Dr. Wilson for electronic renewal sign-off.',
+      timestamp: new Date(Date.now() - 2 * 3600000).toISOString(),
+      is_ai_drafted: false
+    }
+  ],
+  'RX-10484': [
+    {
+      id: 'comm-10484-1',
+      case_id: 'RX-10484',
+      sender_id: 'usr-pharm-01',
+      sender_name: 'Elena Rostova, CPhT',
+      sender_role: 'PHARMACY_STAFF',
+      recipient_role: 'PRACTICE_STAFF',
+      content: 'Refill request for Eleanor Vance (Ozempic 1mg/dose Pen). PBM electronic claim rejected: Prior Authorization required under 2026 formulary guidelines.',
+      timestamp: new Date(Date.now() - 6 * 3600000).toISOString(),
+      is_ai_drafted: false
+    },
+    {
+      id: 'comm-10484-2',
+      case_id: 'RX-10484',
+      sender_id: 'usr-pract-01',
+      sender_name: 'Maya Lin, BSN',
+      sender_role: 'PRACTICE_STAFF',
+      recipient_role: 'PHARMACY_STAFF',
+      content: 'ePA criteria submitted through CoverMyMeds bridge. Clinical diagnosis codes for Type 2 Diabetes (E11.9) with HbA1c 7.8% attached. Payer SLA is 24 hours.',
+      timestamp: new Date(Date.now() - 3 * 3600000).toISOString(),
+      is_ai_drafted: false
+    }
+  ],
+  'RX-10485': [
+    {
+      id: 'comm-10485-1',
+      case_id: 'RX-10485',
+      sender_id: 'usr-pharm-01',
+      sender_name: 'Elena Rostova, CPhT',
+      sender_role: 'PHARMACY_STAFF',
+      recipient_role: 'PRACTICE_STAFF',
+      content: 'Refill request for Carlos Mendez (Amoxicillin 875mg). Quantity discrepancy flagged: Original Rx was for 10-day acute course. Please clarify if second course is intended.',
+      timestamp: new Date(Date.now() - 2 * 3600000).toISOString(),
+      is_ai_drafted: false
+    },
+    {
+      id: 'comm-10485-2',
+      case_id: 'RX-10485',
+      sender_id: 'usr-pract-01',
+      sender_name: 'Maya Lin, BSN',
+      sender_role: 'PRACTICE_STAFF',
+      recipient_role: 'PHARMACY_STAFF',
+      content: 'Contacting patient regarding persistent symptoms. If symptoms unresolved, provider requested clinic visit rather than repeated antibiotic course.',
+      timestamp: new Date(Date.now() - 1 * 3600000).toISOString(),
+      is_ai_drafted: false
+    }
+  ],
+  'RX-10487': [
+    {
+      id: 'comm-10487-1',
+      case_id: 'RX-10487',
+      sender_id: 'usr-pharm-01',
+      sender_name: 'Elena Rostova, CPhT',
+      sender_role: 'PHARMACY_STAFF',
+      recipient_role: 'PRACTICE_STAFF',
+      content: 'Downtown Pharmacy refill inquiry for David Kim (Sertraline 50mg). Patient has 2 doses left. Requesting physician sign-off.',
+      timestamp: new Date(Date.now() - 8 * 3600000).toISOString(),
+      is_ai_drafted: false
+    },
+    {
+      id: 'comm-10487-2',
+      case_id: 'RX-10487',
+      sender_id: 'usr-prov-01',
+      sender_name: 'Dr. Sarah Wilson, MD',
+      sender_role: 'PROVIDER',
+      recipient_role: 'PRACTICE_STAFF',
+      content: 'Refill approved. Dispatched 90-day electronic script via Surescripts. Next routine behavioral health follow-up in 6 months.',
+      timestamp: new Date(Date.now() - 1.5 * 3600000).toISOString(),
+      is_ai_drafted: true
+    }
+  ],
+  'RX-10490': [
+    {
+      id: 'comm-10490-1',
+      case_id: 'RX-10490',
+      sender_id: 'usr-pharm-01',
+      sender_name: 'Elena Rostova, CPhT',
+      sender_role: 'PHARMACY_STAFF',
+      recipient_role: 'PRACTICE_STAFF',
+      content: 'Refill request for Sophia Al-Mansoor (Vyvanse 30mg). Schedule II controlled substance protocol: Prescription cannot be refilled automatically without encounter.',
+      timestamp: new Date(Date.now() - 12 * 3600000).toISOString(),
+      is_ai_drafted: false
+    },
+    {
+      id: 'comm-10490-2',
+      case_id: 'RX-10490',
+      sender_id: 'usr-pract-01',
+      sender_name: 'Maya Lin, BSN',
+      sender_role: 'PRACTICE_STAFF',
+      recipient_role: 'PROVIDER',
+      content: 'Escalated to clinical supervisor Marcus Vance. Patient last seen 7 months ago; state PDMP check completed. Recommending telehealth encounter.',
+      timestamp: new Date(Date.now() - 2 * 3600000).toISOString(),
+      is_ai_drafted: false
+    }
+  ],
+  'RX-10491': [
+    {
+      id: 'comm-10491-1',
+      case_id: 'RX-10491',
+      sender_id: 'usr-pharm-01',
+      sender_name: 'Elena Rostova, CPhT',
+      sender_role: 'PHARMACY_STAFF',
+      recipient_role: 'PRACTICE_STAFF',
+      content: 'Electronic transmission failed for Liam O Connor (Amlodipine 5mg). EHR FHIR gateway returned connection reset during medication order dispatch.',
+      timestamp: new Date(Date.now() - 14 * 3600000).toISOString(),
+      is_ai_drafted: false
+    },
+    {
+      id: 'comm-10491-2',
+      case_id: 'RX-10491',
+      sender_id: 'usr-admin-01',
+      sender_name: 'Marcus Vance',
+      sender_role: 'ADMIN',
+      recipient_role: 'PHARMACY_STAFF',
+      content: 'Integration health alert acknowledged. Retried through redundant NCPDP gateway. Script safely queued for transmission once EHR heartbeat recovers.',
+      timestamp: new Date(Date.now() - 4 * 3600000).toISOString(),
+      is_ai_drafted: false
+    }
+  ]
+};
+

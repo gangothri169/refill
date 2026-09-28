@@ -123,11 +123,11 @@ export interface CommunicationMessage {
   sender_id: string;
   sender_name: string;
   sender_role: string;
-  sender_org: string;
+  sender_org?: string;
   recipient_role: string;
   content: string;
   is_ai_drafted: boolean;
-  reviewed_by_human: boolean;
+  reviewed_by_human?: boolean;
   attachments?: string[];
   timestamp: string;
 }
