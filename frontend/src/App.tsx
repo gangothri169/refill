@@ -86,6 +86,8 @@ const AppLayout: React.FC = () => {
               <Route path="/cases/:id" element={<CaseDetailPage />} />
               <Route path="/analytics" element={<AnalyticsPage />} />
               <Route path="/audit" element={<AuditLogPage />} />
+              <Route path="/audit-logs" element={<Navigate to="/audit" replace />} />
+              <Route path="/audit-log" element={<Navigate to="/audit" replace />} />
               <Route path="/integrations" element={<IntegrationsPage />} />
               <Route path="/knowledge" element={<KnowledgeBasePage />} />
               <Route path="/growth" element={<GrowthPage />} />

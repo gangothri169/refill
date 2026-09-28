@@ -381,7 +381,7 @@ export const CaseDetailPage: React.FC = () => {
           </div>
 
           {/* Section B: AI Insights & Recommendation - Frosted Luminous Card */}
-          <div className="glass-card p-5 space-y-4 border border-blue-200/70 bg-gradient-to-br from-white/80 via-blue-50/30 to-indigo-50/20">
+          <div id="section-b-ai" className="glass-card p-5 space-y-4 border border-blue-200/70 bg-gradient-to-br from-white/80 via-blue-50/30 to-indigo-50/20 scroll-mt-20">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-blue-500/25 border border-white/40">
@@ -562,7 +562,7 @@ export const CaseDetailPage: React.FC = () => {
         {/* Right Column: Role Action Panel + Cross-Role Communications */}
         <div className="space-y-6">
           {/* Section F: Role-Specific Action Panel */}
-          <div className="glass-card p-5 space-y-4">
+          <div id="section-f-action" className="glass-card p-5 space-y-4 scroll-mt-20">
             <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
               <div>
                 <h2 className="text-sm font-bold text-slate-900">Section F: Action Panel</h2>
