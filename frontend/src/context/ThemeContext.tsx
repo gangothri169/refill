@@ -12,15 +12,21 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<Theme>(() => {
-    // Check saved local storage preference
-    const saved = localStorage.getItem('rxresolve_theme');
-    if (saved === 'dark' || saved === 'light') {
-      return saved;
-    }
-    // Fall back to system preference
-    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
+    // Clear any previous persistent dark mode keys so the site is never stuck in dark mode on initial load
+    try {
+      localStorage.removeItem('rxresolve_theme');
+      localStorage.removeItem('rxresolve_user_theme');
+    } catch {}
+
+    // Check if the user opted into dark mode during this active session
+    try {
+      const sessionSaved = sessionStorage.getItem('rxresolve_theme');
+      if (sessionSaved === 'dark' || sessionSaved === 'light') {
+        return sessionSaved;
+      }
+    } catch {}
+
+    // DEFAULT: Always white mode when opening the site
     return 'light';
   });
 
@@ -31,7 +37,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } else {
       root.classList.remove('dark');
     }
-    localStorage.setItem('rxresolve_theme', theme);
+    try {
+      sessionStorage.setItem('rxresolve_theme', theme);
+    } catch {}
   }, [theme]);
 
   const toggleTheme = () => {
