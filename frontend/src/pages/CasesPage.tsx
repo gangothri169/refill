@@ -136,7 +136,7 @@ export const CasesPage: React.FC<{ onOpenNewCase: () => void }> = ({ onOpenNewCa
   ];
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -365,7 +365,7 @@ export const CasesPage: React.FC<{ onOpenNewCase: () => void }> = ({ onOpenNewCa
       {viewMode === 'table' ? (
         <div className="glass-card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-700">
+            <table className="w-full text-left text-xs text-slate-700 min-w-[760px]">
               <thead className="bg-white/60 border-b border-slate-200/70 text-slate-500 uppercase tracking-wider font-semibold text-[10px] backdrop-blur-md">
                 <tr>
                   <th className="py-3 px-4">Case ID</th>

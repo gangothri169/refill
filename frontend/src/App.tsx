@@ -28,9 +28,15 @@ const AppLayout: React.FC = () => {
   const location = useLocation();
   const isLoginPage = location.pathname === '/login';
 
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [newCaseModalOpen, setNewCaseModalOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(2);
+
+  // Close mobile sidebar on route changes
+  useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [location.pathname, location.search]);
 
   // Sync unread notifications count with storage
   useEffect(() => {
@@ -64,7 +70,10 @@ const AppLayout: React.FC = () => {
       <DemoBanner />
 
       <div className="flex flex-1 overflow-hidden relative">
-        <Sidebar />
+        <Sidebar
+          mobileOpen={mobileSidebarOpen}
+          onCloseMobile={() => setMobileSidebarOpen(false)}
+        />
 
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <Navbar
@@ -72,6 +81,7 @@ const AppLayout: React.FC = () => {
             copilotOpen={copilotOpen}
             onOpenNewCase={() => setNewCaseModalOpen(true)}
             unreadNotificationsCount={unreadCount}
+            onToggleMobileSidebar={() => setMobileSidebarOpen((prev) => !prev)}
           />
 
           <main className="flex-1 overflow-y-auto">

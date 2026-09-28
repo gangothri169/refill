@@ -74,7 +74,7 @@ export const GrowthPage: React.FC = () => {
   ];
 
   return (
-    <div className="p-8 space-y-7 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-7 max-w-7xl mx-auto">
       {/* Header */}
       <div>
         <div className="flex items-center gap-2.5">
