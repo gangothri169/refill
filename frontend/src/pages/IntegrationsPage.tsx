@@ -46,8 +46,11 @@ export const IntegrationsPage: React.FC = () => {
     try {
       await api.retryIntegration(id);
       await fetchData();
+      setPingFeedback(`Integration ${id} connection re-established.`);
+      setTimeout(() => setPingFeedback(null), 3500);
     } catch (err: any) {
-      alert(`Retry failed: ${err.message}`);
+      setPingFeedback(`Retry failed: ${err.message}`);
+      setTimeout(() => setPingFeedback(null), 4000);
     } finally {
       setActionLoading(null);
     }
@@ -58,8 +61,11 @@ export const IntegrationsPage: React.FC = () => {
     try {
       await api.toggleIntegrationFailure(id);
       await fetchData();
+      setPingFeedback(`Simulation status for ${id} updated.`);
+      setTimeout(() => setPingFeedback(null), 3500);
     } catch (err: any) {
-      alert(`Toggle failed: ${err.message}`);
+      setPingFeedback(`Toggle failed: ${err.message}`);
+      setTimeout(() => setPingFeedback(null), 4000);
     } finally {
       setActionLoading(null);
     }
@@ -95,7 +101,8 @@ export const IntegrationsPage: React.FC = () => {
       setPingFeedback('All 4 healthcare infrastructure bridges probed and latency recalibrated successfully.');
       setTimeout(() => setPingFeedback(null), 4000);
     } catch (err: any) {
-      alert(`Ping failed: ${err.message}`);
+      setPingFeedback(`Ping failed: ${err.message}`);
+      setTimeout(() => setPingFeedback(null), 4000);
     } finally {
       setPingingAll(false);
     }

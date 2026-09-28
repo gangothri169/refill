@@ -59,6 +59,10 @@ export const CaseDetailPage: React.FC = () => {
 
   // AI Recommendation acceptance state
   const [recommendationAccepted, setRecommendationAccepted] = useState(false);
+  const [recommendationDismissed, setRecommendationDismissed] = useState(false);
+  const [showModifyRouting, setShowModifyRouting] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<'PROVIDER' | 'PRACTICE_STAFF' | 'PHARMACY_STAFF'>('PROVIDER');
+  const [routingSaving, setRoutingSaving] = useState(false);
 
   const fetchFullCase = async () => {
     if (!id) return;
@@ -227,7 +231,27 @@ export const CaseDetailPage: React.FC = () => {
       setRecommendationAccepted(true);
       await fetchFullCase();
     } catch (err: any) {
-      alert(`Error accepting recommendation: ${err.message}`);
+      console.error('Error accepting recommendation:', err);
+    }
+  };
+
+  const handleApplyCustomRouting = async () => {
+    if (!id || !caseData) return;
+    setRoutingSaving(true);
+    try {
+      await api.assignCase(id, {
+        assignee_id: selectedRole === 'PROVIDER' ? 'usr-prov-01' : 'usr-staff-01',
+        assignee_name: selectedRole === 'PROVIDER' ? (caseData.provider_name || 'Dr. Sarah Wilson') : 'Clinical Staff Coordinator',
+        assignee_role: selectedRole,
+        note: `Custom routing updated to ${selectedRole.replace('_', ' ')}`
+      });
+      setRecommendationAccepted(true);
+      setShowModifyRouting(false);
+      await fetchFullCase();
+    } catch (err: any) {
+      console.error('Error applying custom routing:', err);
+    } finally {
+      setRoutingSaving(false);
     }
   };
 
@@ -446,6 +470,41 @@ export const CaseDetailPage: React.FC = () => {
                   <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-500/15 px-3 py-1.5 rounded-full border border-emerald-400/30 backdrop-blur-md">
                     <Check className="w-3.5 h-3.5 text-emerald-600" /> Recommendation Accepted & Routed
                   </span>
+                ) : recommendationDismissed ? (
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <span>Recommendation dismissed. Case in triage.</span>
+                    <button
+                      onClick={() => setRecommendationDismissed(false)}
+                      className="text-blue-600 font-semibold hover:underline"
+                    >
+                      Undo
+                    </button>
+                  </div>
+                ) : showModifyRouting ? (
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={selectedRole}
+                      onChange={(e) => setSelectedRole(e.target.value as any)}
+                      className="text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 focus:outline-none"
+                    >
+                      <option value="PROVIDER">Route to Provider (MD Sign-off)</option>
+                      <option value="PRACTICE_STAFF">Route to Practice Staff (Triage)</option>
+                      <option value="PHARMACY_STAFF">Route to Pharmacy Staff</option>
+                    </select>
+                    <button
+                      onClick={handleApplyCustomRouting}
+                      disabled={routingSaving}
+                      className="apple-btn-primary px-3 py-1.5 text-xs font-semibold"
+                    >
+                      {routingSaving ? 'Routing...' : 'Confirm'}
+                    </button>
+                    <button
+                      onClick={() => setShowModifyRouting(false)}
+                      className="apple-btn-secondary px-2.5 py-1.5 text-xs font-semibold"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 ) : (
                   <>
                     <button
@@ -456,13 +515,13 @@ export const CaseDetailPage: React.FC = () => {
                       <span>Accept Recommendation</span>
                     </button>
                     <button
-                      onClick={() => alert('Modifying AI routing parameters...')}
+                      onClick={() => setShowModifyRouting(true)}
                       className="apple-btn-secondary px-3.5 py-2 text-xs font-semibold"
                     >
                       Modify
                     </button>
                     <button
-                      onClick={() => alert('AI recommendation dismissed.')}
+                      onClick={() => setRecommendationDismissed(true)}
                       className="px-2.5 py-1.5 text-slate-400 hover:text-slate-700 text-xs transition"
                     >
                       Dismiss
